@@ -1,0 +1,140 @@
+services:
+  dind:
+    image: docker:29-dind
+    privileged: true
+    restart: unless-stopped
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    command:
+      - dockerd
+      - --host=tcp://0.0.0.0:2375
+      - --host=unix:///var/run/docker.sock
+      - --storage-driver=overlay2
+    volumes:
+      - dind-data:/var/lib/docker
+      - ./data/workspace:/workspace
+    networks:
+      - opencode
+    mem_limit: ${DIND_MEMORY_LIMIT:-8g}
+    cpus: ${DIND_CPU_LIMIT:-4}
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  opencode:
+    build:
+      context: .
+      args:
+        OPENCODE_VERSION: ${OPENCODE_VERSION:-latest}
+        OPENCODE_UID: ${OPENCODE_UID:-1000}
+        OPENCODE_GID: ${OPENCODE_GID:-1000}
+    image: local/opencode-remote:${OPENCODE_TAG:-latest}
+    restart: unless-stopped
+    working_dir: /workspace
+    shm_size: 2gb
+    user: ${OPENCODE_UID:-1000}:${OPENCODE_GID:-1000}
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CONTEXT7_API_KEY: ${CONTEXT7_API_KEY:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GH_TOKEN: ${GITHUB_TOKEN:-}
+      OPENCODE_MODEL: ${OPENCODE_MODEL:-anthropic/claude-sonnet-4-6}
+      OPENCODE_SERVER_USERNAME: ${OPENCODE_SERVER_USERNAME:-opencode}
+      OPENCODE_SERVER_PASSWORD: ${OPENCODE_SERVER_PASSWORD:?set OPENCODE_SERVER_PASSWORD}
+      DOCKER_HOST: tcp://dind:2375
+      PLAYWRIGHT_CDP_URL: http://chromium:3000
+      CHROME_URL: http://chromium:3000
+      PREVIEW_BASE_DOMAIN: ${PREVIEW_BASE_DOMAIN:?set PREVIEW_BASE_DOMAIN}
+      PREVIEW_ROUTER_URL: http://preview-router:2019
+    volumes:
+      - ./data/workspace:/workspace
+      - ./data/config:/home/opencode/.config/opencode
+      - ./data/state:/home/opencode/.local/share/opencode
+      - ./data/previews:/home/opencode/.local/share/previews
+      - ./data/gitconfig:/home/opencode/.gitconfig
+      - ./preview/preview:/usr/local/bin/preview:ro
+    expose:
+      - "4096"
+    networks:
+      - opencode
+    depends_on:
+      dind:
+        condition: service_healthy
+      chromium:
+        condition: service_started
+      preview-router:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: ${OPENCODE_MEMORY_LIMIT:-4g}
+    cpus: ${OPENCODE_CPU_LIMIT:-4}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS -u "$${OPENCODE_SERVER_USERNAME}:$${OPENCODE_SERVER_PASSWORD}" http://127.0.0.1:4096/global/health
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  chromium:
+    image: ghcr.io/browserless/chromium:latest
+    restart: unless-stopped
+    shm_size: 2gb
+    environment:
+      CONNECTION_TIMEOUT: "600000"
+      MAX_CONCURRENT_SESSIONS: "5"
+    expose:
+      - "3000"
+    networks:
+      - opencode
+    mem_limit: 2g
+    cpus: 2
+
+  preview-router:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile", "--resume"]
+    volumes:
+      - ./preview/Caddyfile:/etc/caddy/Caddyfile:ro
+      - preview-router-config:/config
+      - preview-router-data:/data
+    expose:
+      - "80"
+      - "2019"
+    networks:
+      - opencode
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:2019/config/ >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - opencode
+    depends_on:
+      opencode:
+        condition: service_healthy
+      preview-router:
+        condition: service_healthy
+
+networks:
+  opencode:
+    ipam:
+      config:
+        - subnet: ${OPENCODE_NETWORK_SUBNET:-10.77.77.0/24}
+
+volumes:
+  dind-data:
+  preview-router-config:
+  preview-router-data:

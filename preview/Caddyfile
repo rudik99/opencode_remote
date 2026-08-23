@@ -1,0 +1,8 @@
+{
+	admin 0.0.0.0:2019
+	auto_https off
+}
+
+:80 {
+	respond "No preview is registered for this hostname.\n" 404
+}

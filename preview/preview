@@ -1,0 +1,146 @@
+#!/bin/sh
+set -eu
+
+STATE_DIR=${PREVIEW_STATE_DIR:-/home/opencode/.local/share/previews}
+REGISTRY="$STATE_DIR/registry.json"
+LOCK="$STATE_DIR/.lock"
+ROUTER_URL=${PREVIEW_ROUTER_URL:-http://preview-router:2019}
+BASE_DOMAIN=${PREVIEW_BASE_DOMAIN:?set PREVIEW_BASE_DOMAIN}
+PORT_MIN=${PREVIEW_PORT_MIN:-31000}
+PORT_MAX=${PREVIEW_PORT_MAX:-31999}
+
+usage() {
+  cat <<'EOF'
+Usage:
+  preview reserve <slug> [project-directory]
+  preview publish <slug>
+  preview remove <slug>
+  preview list
+  preview url <slug>
+EOF
+}
+
+validate_slug() {
+  case "$1" in
+    ''|*[!a-z0-9-]*|-*|*-) echo "Invalid slug: use lowercase letters, numbers, and internal hyphens" >&2; exit 2 ;;
+  esac
+  [ "${#1}" -le 63 ] || { echo "Invalid slug: maximum length is 63 characters" >&2; exit 2; }
+}
+
+acquire_lock() {
+  attempts=0
+  until mkdir "$LOCK" 2>/dev/null; do
+    attempts=$((attempts + 1))
+    [ "$attempts" -lt 100 ] || { echo "Timed out waiting for preview registry lock" >&2; exit 1; }
+    sleep 0.1
+  done
+}
+
+release_lock() {
+  rmdir "$LOCK" 2>/dev/null || true
+}
+
+render_config() {
+  source_file=$1
+  output_file=$2
+  jq '{
+    admin: {listen: "0.0.0.0:2019"},
+    apps: {http: {servers: {preview: {
+      listen: [":80"],
+      routes: ([to_entries[] | select(.value.status == "active") | {
+        match: [{host: [.value.hostname]}],
+        handle: [{handler: "reverse_proxy", upstreams: [{dial: ("dind:" + (.value.port | tostring))}]}],
+        terminal: true
+      }] + [{handle: [{handler: "static_response", status_code: 404, body: "No preview is registered for this hostname.\n"}]}])
+    }}}}
+  }' "$source_file" > "$output_file"
+}
+
+load_config() {
+  registry_file=$1
+  config_file=$(mktemp "$STATE_DIR/router.XXXXXX")
+  render_config "$registry_file" "$config_file"
+  if ! curl -fsS --connect-timeout 5 -X POST \
+      -H 'Content-Type: application/json' \
+      --data-binary "@$config_file" "$ROUTER_URL/load" >/dev/null; then
+    rm -f "$config_file"
+    echo "Could not update the preview router" >&2
+    exit 1
+  fi
+  rm -f "$config_file"
+}
+
+mkdir -p "$STATE_DIR"
+[ -f "$REGISTRY" ] || printf '{}\n' > "$REGISTRY"
+
+command=${1:-}
+case "$command" in
+  reserve)
+    slug=${2:-}
+    validate_slug "$slug"
+    project=${3:-$PWD}
+    acquire_lock
+    trap release_lock EXIT INT TERM
+
+    existing=$(jq -r --arg slug "$slug" '.[$slug].port // empty' "$REGISTRY")
+    if [ -n "$existing" ]; then
+      printf 'slug=%s\nport=%s\nhostname=%s.%s\n' "$slug" "$existing" "$slug" "$BASE_DOMAIN"
+      exit 0
+    fi
+
+    used_ports=$(docker ps --format '{{.Ports}}')
+    port=$PORT_MIN
+    while [ "$port" -le "$PORT_MAX" ]; do
+      if ! jq -e --argjson port "$port" 'any(.[]; .port == $port)' "$REGISTRY" >/dev/null \
+          && ! printf '%s\n' "$used_ports" | grep -q "0.0.0.0:$port->"; then
+        break
+      fi
+      port=$((port + 1))
+    done
+    [ "$port" -le "$PORT_MAX" ] || { echo "No preview ports are available" >&2; exit 1; }
+
+    candidate=$(mktemp "$STATE_DIR/registry.XXXXXX")
+    jq --arg slug "$slug" --arg hostname "$slug.$BASE_DOMAIN" --arg project "$project" \
+      --argjson port "$port" '.[$slug] = {hostname: $hostname, port: $port, project: $project, status: "reserved"}' \
+      "$REGISTRY" > "$candidate"
+    mv "$candidate" "$REGISTRY"
+    printf 'slug=%s\nport=%s\nhostname=%s.%s\n' "$slug" "$port" "$slug" "$BASE_DOMAIN"
+    ;;
+  publish)
+    slug=${2:-}
+    validate_slug "$slug"
+    acquire_lock
+    trap release_lock EXIT INT TERM
+    port=$(jq -r --arg slug "$slug" '.[$slug].port // empty' "$REGISTRY")
+    [ -n "$port" ] || { echo "Preview is not reserved: $slug" >&2; exit 1; }
+    curl -sS --connect-timeout 5 --max-time 15 -o /dev/null "http://dind:$port/" \
+      || { echo "Application is not reachable at http://dind:$port" >&2; exit 1; }
+    candidate=$(mktemp "$STATE_DIR/registry.XXXXXX")
+    jq --arg slug "$slug" '.[$slug].status = "active"' "$REGISTRY" > "$candidate"
+    load_config "$candidate"
+    mv "$candidate" "$REGISTRY"
+    printf 'https://%s.%s\n' "$slug" "$BASE_DOMAIN"
+    ;;
+  remove)
+    slug=${2:-}
+    validate_slug "$slug"
+    acquire_lock
+    trap release_lock EXIT INT TERM
+    candidate=$(mktemp "$STATE_DIR/registry.XXXXXX")
+    jq --arg slug "$slug" 'del(.[$slug])' "$REGISTRY" > "$candidate"
+    load_config "$candidate"
+    mv "$candidate" "$REGISTRY"
+    ;;
+  list)
+    jq -r 'to_entries[] | [.key, (.value.port | tostring), .value.status, .value.hostname, .value.project] | @tsv' "$REGISTRY"
+    ;;
+  url)
+    slug=${2:-}
+    validate_slug "$slug"
+    jq -er --arg slug "$slug" '.[$slug] | "https://" + .hostname' "$REGISTRY"
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
