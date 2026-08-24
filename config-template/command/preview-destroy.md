@@ -3,7 +3,7 @@ description: Stop a project preview and remove its wildcard route without deleti
 agent: build
 ---
 
-Destroy the requested Docker preview. Load and follow the `preview-deployment` skill exactly, especially its destroy procedure, label-based fallback, and prohibition on deleting volumes. Record the data-volume baseline and verify it survived; prove route removal by matching the router's response body rather than status alone.
+Destroy the requested Docker preview. Load and follow the `preview-deployment` skill exactly, especially its destroy procedure, label-based fallback, and prohibition on deleting volumes. Reuse the standard preview environment file when Compose interpolation requires it, but never delete or display it. Record the public URL with `preview url <slug>` before removing the route. Record the data-volume baseline and verify it survived; prove route removal by matching the router's response body rather than status alone.
 
 Preview slug or user arguments: `$ARGUMENTS`
 

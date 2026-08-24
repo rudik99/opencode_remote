@@ -212,6 +212,32 @@ To stop a preview while preserving data and build artifacts:
 
 Destroy removes project containers, its Compose network, the Caddy route, and the port reservation. It preserves named volumes, bind-mounted data, source files, images, build cache, generated environment files, and the preview override. The procedure records volumes before teardown and verifies they still exist afterward.
 
+## Preview Environment Variables
+
+Each preview uses a persistent environment file at `/workspace/.preview-env/<slug>.env`. Initialize it from inside the OpenCode container with `preview env <slug>`; the helper requests directory mode `700` and file mode `600`, removes all group/other access, and prints only its path. NFSv4 ACL datasets may preserve an owner execute bit and display an owner-only file as `700`.
+
+```bash
+docker compose exec opencode preview env my-project
+# /workspace/.preview-env/my-project.env
+```
+
+Store one `KEY=VALUE` per line and edit secret values directly in that file. Do not put secrets in chat, shell arguments, project files, or committed examples. If a project also has a base `.env`, pass both files to every Compose lifecycle command in this order so the preview-specific values take precedence:
+
+```bash
+docker compose --env-file .env \
+  --env-file /workspace/.preview-env/my-project.env \
+  -p preview-my-project -f compose.yaml -f .opencode/preview.compose.yml \
+  config --quiet
+```
+
+The same ordered `--env-file` arguments must be reused for validation, build, startup, bootstrap, redeploy, and teardown. Omit `.env` when it does not exist. Compose env files provide interpolation values; they do not automatically expose every variable to containers.
+
+- Explicitly allowlist required runtime variables under the service's `environment:` section.
+- Use build arguments only for non-secret values that must be embedded in frontend assets, such as public browser URLs.
+- Use BuildKit or Compose secrets for sensitive build inputs. Build arguments can remain visible in image metadata or layers.
+- Validate with `docker compose ... config --quiet`. Never print raw `docker compose config` output because resolved configuration can contain secrets.
+- `/preview-destroy` retains `/workspace/.preview-env/<slug>.env` with owner-only access for safe, fast redeployment unless the user explicitly requests its removal.
+
 Useful low-level commands:
 
 ```bash

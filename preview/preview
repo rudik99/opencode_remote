@@ -8,6 +8,7 @@ ROUTER_URL=${PREVIEW_ROUTER_URL:-http://preview-router:2019}
 BASE_DOMAIN=${PREVIEW_BASE_DOMAIN:?set PREVIEW_BASE_DOMAIN}
 PORT_MIN=${PREVIEW_PORT_MIN:-31000}
 PORT_MAX=${PREVIEW_PORT_MAX:-31999}
+ENV_DIR=${PREVIEW_ENV_DIR:-/workspace/.preview-env}
 
 usage() {
   cat <<'EOF'
@@ -15,6 +16,7 @@ Usage:
   preview reserve <slug> [project-directory]
   preview publish <slug>
   preview remove <slug>
+  preview env <slug>
   preview list
   preview url <slug>
 EOF
@@ -75,6 +77,28 @@ mkdir -p "$STATE_DIR"
 
 command=${1:-}
 case "$command" in
+  env)
+    slug=${2:-}
+    validate_slug "$slug"
+    env_file="$ENV_DIR/$slug.env"
+    old_umask=$(umask)
+    umask 077
+    [ ! -L "$ENV_DIR" ] \
+      || { echo "Preview environment directory must not be a symlink: $ENV_DIR" >&2; exit 1; }
+    mkdir -p "$ENV_DIR"
+    [ -d "$ENV_DIR" ] && [ ! -L "$ENV_DIR" ] \
+      || { echo "Preview environment path is not a directory: $ENV_DIR" >&2; exit 1; }
+    chmod 0700 "$ENV_DIR"
+    if [ -e "$env_file" ]; then
+      [ -f "$env_file" ] && [ ! -L "$env_file" ] \
+        || { echo "Preview environment path is not a regular file: $env_file" >&2; exit 1; }
+    else
+      : > "$env_file"
+    fi
+    chmod 0600 "$env_file"
+    umask "$old_umask"
+    printf '%s\n' "$env_file"
+    ;;
   reserve)
     slug=${2:-}
     validate_slug "$slug"
