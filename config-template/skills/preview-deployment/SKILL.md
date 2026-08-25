@@ -91,9 +91,10 @@ Use the `preview` helper and the Docker daemon at `DOCKER_HOST`. Cloudflare is c
     - Interact with at least one meaningful control and assert an observable result such as changed DOM or state, navigation, a cookie or session being created, or a successful application request.
     - Exercise a representative path that depends on bootstrapped data or a backend integration when feasible. A storefront, for example, should load usable catalog data rather than only its shell.
     - Framework attachment markers such as React or Vue instance data may support diagnosis, but the definitive check is successful user-visible behavior.
+    - After the interaction succeeds, take a Playwright screenshot of the resulting state so it appears inline in chat. Capture a desktop view and add a mobile view when responsive behavior is relevant. Use a basename-only filename without path separators or `..` so the artifact remains in the managed screenshot directory. Use safe test data and do not capture secrets or sensitive user information.
 
 15. If functional verification fails, do not report success. Diagnose and redeploy; if abandoning the attempt, remove the provisional route with `preview remove <slug>`.
-16. Report the URL returned by `preview url <slug>`, service name, allocated port, environment-file path without its contents, production target, Compose files used, bootstrap performed, interaction tested, and any remaining caveats.
+16. Report the URL returned by `preview url <slug>`, service name, allocated port, environment-file path without its contents, production target, Compose files used, bootstrap performed, interaction tested, screenshots captured, and any remaining caveats.
 
 If deployment fails after reservation, diagnose and retry. If abandoning the deployment, run `preview remove <slug>` so the port is released.
 
