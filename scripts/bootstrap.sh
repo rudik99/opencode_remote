@@ -9,6 +9,8 @@ host_gid=$(id -g)
 runtime_uid=1000
 runtime_gid=1000
 
+[ ! -L .env ] || { echo "Bootstrap path must not be a symlink: .env" >&2; exit 1; }
+
 if [ "$(uname -s)" = Linux ] && [ "$host_uid" -ne 0 ]; then
   runtime_uid=$host_uid
   runtime_gid=$host_gid
@@ -30,7 +32,25 @@ else
   runtime_gid=$configured_gid
 fi
 
+for path in data data/config data/previews data/state data/workspace data/gitconfig; do
+  [ ! -L "$path" ] || { echo "Bootstrap path must not be a symlink: $path" >&2; exit 1; }
+done
+
 mkdir -p data/config data/previews data/state data/workspace
+
+for path in data data/config data/previews data/state data/workspace; do
+  [ -d "$path" ] && [ ! -L "$path" ] \
+    || { echo "Bootstrap path is not a directory: $path" >&2; exit 1; }
+done
+
+for path in data/workspace/.opencode-artifacts data/workspace/.opencode-artifacts/screenshots; do
+  [ ! -L "$path" ] || { echo "Bootstrap path must not be a symlink: $path" >&2; exit 1; }
+  if [ ! -e "$path" ]; then
+    (umask 077 && mkdir "$path")
+  fi
+  [ -d "$path" ] && [ ! -L "$path" ] \
+    || { echo "Bootstrap path is not a directory: $path" >&2; exit 1; }
+done
 
 if [ ! -f data/config/opencode.jsonc ]; then
   cp -R config-template/. data/config/

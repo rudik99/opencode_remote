@@ -200,7 +200,7 @@ The deployment procedure:
 4. Removes unrelated host port publishing with Compose `!reset` and `!override` tags.
 5. Builds, migrates, seeds, and starts the application in DinD.
 6. Publishes `<slug>.<PREVIEW_BASE_DOMAIN>` through Caddy.
-7. Uses Playwright to prove that the application hydrated and a meaningful interaction works.
+7. Uses Playwright to prove that the application hydrated and a meaningful interaction works, then posts a screenshot of the verified state inline in chat.
 
 HTTP `200` and server-rendered HTML are deliberately not considered sufficient proof of success.
 
@@ -238,6 +238,18 @@ The same ordered `--env-file` arguments must be reused for validation, build, st
 - Validate with `docker compose ... config --quiet`. Never print raw `docker compose config` output because resolved configuration can contain secrets.
 - `/preview-destroy` retains `/workspace/.preview-env/<slug>.env` with owner-only access for safe, fast redeployment unless the user explicitly requests its removal.
 
+## Visual Verification
+
+Visual verification applies to all meaningful browser-facing work, not only `/preview-deploy`. The global instruction asks OpenCode to run or reuse a reachable application while building, verify a real interaction, and post a desktop screenshot of the resulting state inline in chat. It also requests a mobile screenshot when responsive behavior is relevant.
+
+Screenshots supplement behavioral, console, network, and automated checks rather than replacing them. The instruction prohibits capturing secrets, credentials, private environment values, or sensitive user data.
+
+Retained files are stored in `/workspace/.opencode-artifacts/screenshots`. Playwright limits its output to 500 MiB and evicts older artifacts as needed. To clear retained image files manually while preserving the artifact directory, run:
+
+```text
+/clear-screenshots
+```
+
 Useful low-level commands:
 
 ```bash
@@ -272,6 +284,8 @@ docker compose up -d
 ```
 
 Pin `OPENCODE_VERSION` and image tags for reproducible or production-oriented installations. Review release notes before major Docker, Caddy, Browserless, or OpenCode upgrades.
+
+Bootstrap does not overwrite an existing `data/config`. When an update changes `config-template`, back up `data/config`, selectively copy or merge the new configuration, commands, skills, and instructions, then restart OpenCode.
 
 ## Security
 
