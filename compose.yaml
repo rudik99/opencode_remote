@@ -32,6 +32,7 @@ services:
         OPENCODE_UID: ${OPENCODE_UID:-1000}
         OPENCODE_GID: ${OPENCODE_GID:-1000}
     image: local/opencode-remote:${OPENCODE_TAG:-latest}
+    init: true
     restart: unless-stopped
     working_dir: /workspace
     shm_size: 2gb
@@ -82,6 +83,7 @@ services:
 
   chromium:
     image: ghcr.io/browserless/chromium:latest
+    init: true
     restart: unless-stopped
     shm_size: 2gb
     environment:
