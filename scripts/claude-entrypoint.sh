@@ -40,6 +40,12 @@ fi
 # VS Code over HTTP on :8080. --auth none: Cloudflare Access in front of
 # code.<domain> is the login. Started before the sign-in check so the iPad can
 # reach a terminal to run `claude auth login` in.
+# Claude Code extension from Open VSX (code-server's default gallery), once;
+# it lives on the persistent volume. The terminal `claude` matters more.
+if ! code-server --list-extensions 2>/dev/null | grep -qi '^anthropic.claude-code$'; then
+  code-server --install-extension Anthropic.claude-code >/proc/1/fd/1 2>&1 \
+    || echo "claude-entrypoint: WARN could not install the Claude Code extension (will retry next start)" >&2
+fi
 code-server --bind-addr 0.0.0.0:8080 --auth none --disable-telemetry \
   --disable-update-check /workspace >/proc/1/fd/1 2>&1 &
 

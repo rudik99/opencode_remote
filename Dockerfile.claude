@@ -76,10 +76,9 @@ RUN mkdir -p /home/claude/.ssh /home/claude/.claude /home/claude/.azure /home/cl
 
 # code-server (VS Code over HTTP) in the same container as Remote Control, so
 # the iPad gets a file tree, a terminal and a place to run device-code logins.
-# The Claude Code extension comes from Open VSX (code-server's default gallery);
-# the terminal `claude` is what matters if the extension install ever fails.
-RUN curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=/home/claude/.local \
- && (/home/claude/.local/bin/code-server --install-extension Anthropic.claude-code || echo "WARN: claude-code extension not installed")
+# Extensions are installed by the entrypoint at runtime: the extension dir is
+# on a persistent volume, so anything installed here would be shadowed.
+RUN curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=/home/claude/.local
 
 # Native Claude Code install. Pin CLAUDE_CODE_VERSION in .env before leaving the
 # box unattended; "latest" is only sensible while iterating.

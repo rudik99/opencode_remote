@@ -87,7 +87,7 @@ It opens `/workspace`; its terminal is where `claude`, `claude auth login`,
 `gh auth login` and `aws sso login --use-device-code` run from the iPad.
 Extensions/settings persist on `./data/claude/code-server`; `gh` login on
 `./data/claude/gh`. The Claude Code extension (`Anthropic.claude-code`, Open VSX)
-is installed at build time if available.
+is installed by the entrypoint on first start and persists on that volume.
 
 ## Operating notes
 
