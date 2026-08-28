@@ -42,6 +42,7 @@ The host does not publish OpenCode, preview, browser, or Docker daemon ports. Cl
 - Enforced pre-handoff browser verification and `/test-like-a-human` acceptance command
 - Context-aware PR follow-through with inline feedback resolution and `/pr-follow-through`
 - Proportional validation rules that keep simple tasks fast, reserve expensive checks for matching risks, and keep manually created worktrees inside each repository
+- Portable agents, commands, instructions, plugins, and pinned third-party skill bundles
 - Hardened preview instructions covering production builds, Compose overrides, bootstrap, hydration checks, data preservation, and orphan cleanup
 - Common development tools including Git, Git LFS, GitHub CLI, Node 22, Python 3, `nano`, `rg`, `fd`, and a compiler toolchain
 
@@ -60,7 +61,7 @@ DinD requires `privileged: true`. Read the security section before exposing this
 1. Clone and bootstrap the repository:
 
    ```bash
-   git clone https://github.com/rudik99/opencode_remote.git
+   git clone <repository-url> opencode_remote
    cd opencode_remote
    ./scripts/bootstrap.sh
    ```
@@ -149,6 +150,10 @@ The versioned template is at:
 ```text
 ./config-template/opencode.jsonc
 ```
+
+`./scripts/bootstrap.sh` initializes the pinned Git submodules and installs the complete public configuration on first run. This includes the local subagents, commands, instruction policies, Ponytail plugin, adapted Addy skills, Cloudflare skills, and Payload skills. Plugin runtime dependencies are locked in `config-template/package-lock.json` and installed inside the OpenCode container.
+
+Machine-specific provider endpoints, Git identity, tokens, credentials, personal domains, runtime state, and `node_modules` are intentionally excluded. Configure those through `.env`, the generic template, or ignored files under `data/`.
 
 Reload the affected workspace after changing project configuration, commands, agents, skills, or MCP credentials:
 
@@ -382,7 +387,7 @@ docker compose up -d
 
 Pin `OPENCODE_VERSION` and image tags for reproducible or production-oriented installations. Review release notes before major Docker, Caddy, Browserless, or OpenCode upgrades.
 
-Bootstrap does not overwrite an existing `data/config`. When an update changes `config-template`, back up `data/config`, selectively copy or merge the new configuration, commands, skills, and instructions, then restart OpenCode.
+Bootstrap does not overwrite an existing `data/config`. When an update changes `config-template` or pinned vendor configuration, back up `data/config`, selectively copy or merge the new configuration, commands, skills, and instructions, then restart OpenCode.
 
 When adding the screenshot viewer to an existing installation, rerun `./scripts/bootstrap.sh` to create `/workspace/screenshots` and its ignore rule, merge the updated configuration template, then recreate the affected services and reload the preserved preview registry:
 
@@ -456,6 +461,7 @@ Stop the stack, back up `data/config`, and copy the desired files from `config-t
 compose.yaml                    Outer service stack
 Dockerfile                      OpenCode development image
 config-template/                Initial OpenCode configuration and instructions
+vendor/                         Pinned third-party skills and plugin sources
 preview/Caddyfile               Initial wildcard router configuration
 preview/preview                 Preview registry and Caddy lifecycle helper
 scripts/bootstrap.sh            Safe first-run data initialization

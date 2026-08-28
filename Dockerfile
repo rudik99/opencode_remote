@@ -39,6 +39,8 @@ RUN npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
 RUN printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/xdg-open \
  && chmod +x /usr/local/bin/xdg-open
 
+COPY --chmod=0755 scripts/opencode-entrypoint.sh /usr/local/bin/opencode-entrypoint
+
 ARG OPENCODE_UID=1000
 ARG OPENCODE_GID=1000
 RUN if getent group "${OPENCODE_GID}" >/dev/null; then \
@@ -69,5 +71,5 @@ RUN if [ "${OPENCODE_VERSION}" = "latest" ]; then \
     fi
 
 WORKDIR /workspace
-ENTRYPOINT ["opencode"]
+ENTRYPOINT ["/usr/local/bin/opencode-entrypoint"]
 CMD ["web", "--hostname", "0.0.0.0", "--port", "4096"]

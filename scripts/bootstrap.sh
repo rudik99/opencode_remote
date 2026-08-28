@@ -72,7 +72,46 @@ else
 fi
 
 if [ ! -f data/config/opencode.jsonc ]; then
-  cp -R config-template/. data/config/
+  if [ -n "$(ls -A data/config)" ]; then
+    echo "data/config contains files but no opencode.jsonc; move them aside before bootstrapping." >&2
+    exit 1
+  fi
+
+  if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git submodule update --init --recursive
+  else
+    echo "Vendor configuration is unavailable. Clone this repository with Git instead of downloading a source archive." >&2
+    exit 1
+  fi
+
+  staging="data/config.bootstrap.$$"
+  [ ! -e "$staging" ] || { echo "Bootstrap staging path already exists: $staging" >&2; exit 1; }
+  trap 'rm -rf "$staging"' EXIT HUP INT TERM
+  mkdir "$staging"
+  cp -R config-template/. "$staging/"
+
+  for skill in \
+      agents-sdk cloudflare cloudflare-email-service cloudflare-one \
+      cloudflare-one-migrations durable-objects sandbox-sdk web-perf \
+      workers-best-practices wrangler; do
+    cp -R "vendor/cloudflare-skills/skills/$skill" "$staging/skills/"
+  done
+  cp -R vendor/cloudflare-turnstile-spin/skills/turnstile-spin "$staging/skills/"
+  cp -R vendor/payload-skills/skills/payload "$staging/skills/"
+  cp -R vendor/payload-skills/skills/cms-migration "$staging/skills/"
+  cp vendor/addy-agent-skills/LICENSE "$staging/skills/ADDY_LICENSE"
+  cp vendor/cloudflare-skills/LICENSE "$staging/skills/CLOUDFLARE_LICENSE"
+
+  mkdir -p "$staging/ponytail/.opencode"
+  cp -R vendor/ponytail/.opencode/plugins "$staging/ponytail/.opencode/"
+  cp -R vendor/ponytail/.opencode/command "$staging/ponytail/.opencode/"
+  cp -R vendor/ponytail/hooks "$staging/ponytail/"
+  cp -R vendor/ponytail/skills "$staging/ponytail/"
+  cp vendor/ponytail/LICENSE vendor/ponytail/package.json "$staging/ponytail/"
+
+  rmdir data/config
+  mv "$staging" data/config
+  trap - EXIT HUP INT TERM
 fi
 
 if [ ! -f data/gitconfig ]; then

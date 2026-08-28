@@ -1,0 +1,15 @@
+[submodule "vendor/addy-agent-skills"]
+	path = vendor/addy-agent-skills
+	url = https://github.com/addyosmani/agent-skills.git
+[submodule "vendor/cloudflare-skills"]
+	path = vendor/cloudflare-skills
+	url = https://github.com/cloudflare/skills.git
+[submodule "vendor/cloudflare-turnstile-spin"]
+	path = vendor/cloudflare-turnstile-spin
+	url = https://github.com/cloudflare/skills.git
+[submodule "vendor/payload-skills"]
+	path = vendor/payload-skills
+	url = https://github.com/payloadcms/skills.git
+[submodule "vendor/ponytail"]
+	path = vendor/ponytail
+	url = https://github.com/DietrichGebert/ponytail.git

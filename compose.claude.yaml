@@ -1,4 +1,4 @@
-# Claude Code overlay for rudik99/opencode_remote.
+# Claude Code overlay for OpenCode Remote.
 #
 # Adds two services and touches nothing in compose.yaml:
 #   claude          - Claude Code in Remote Control server mode (outbound only)
