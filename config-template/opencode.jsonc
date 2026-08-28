@@ -2,7 +2,11 @@
   "$schema": "https://opencode.ai/config.json",
   "model": "{env:OPENCODE_MODEL}",
   "lsp": true,
-  "instructions": ["/home/opencode/.config/opencode/instructions/visual-verification.md"],
+  "instructions": [
+    "/home/opencode/.config/opencode/instructions/visual-verification.md",
+    "/home/opencode/.config/opencode/instructions/pr-follow-through.md",
+    "/home/opencode/.config/opencode/instructions/execution-efficiency.md"
+  ],
   "mcp": {
     "context7": {
       "type": "remote",
