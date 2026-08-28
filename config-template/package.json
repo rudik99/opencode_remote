@@ -1,0 +1,8 @@
+{
+  "name": "opencode-remote-config",
+  "private": true,
+  "dependencies": {
+    "@opencode-ai/plugin": "1.18.21",
+    "@whisperopencode/push": "0.3.0"
+  }
+}
