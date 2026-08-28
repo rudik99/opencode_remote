@@ -69,8 +69,19 @@ fi
 
 # --- 5. Serve -----------------------------------------------------------------
 # Plain server mode, NOT --continue: --continue exits when its single session
-# ends and would fight restart: unless-stopped. Re-running server mode in the
-# same directory re-serves the sessions it had (about a four-hour window).
-exec claude remote-control \
-  --name "${CLAUDE_SESSION_NAME:-homelab}" \
-  --permission-mode "${CLAUDE_PERMISSION_MODE:-default}"
+# ends. Re-running server mode in the same directory re-serves the sessions it
+# had (about a four-hour window).
+#
+# Run it in a supervised loop instead of exec'ing it: if Remote Control exits
+# (network outage >10 min, login expiry, a crash) code-server must stay up so
+# the iPad can still reach a terminal, and the container must not restart.
+# Server mode asks "Enable Remote Control? (y/n)" on stdin and exits on EOF, so
+# the answer is piped in; with it, headless (no TTY) server mode works.
+while :; do
+  printf 'y\n' | claude remote-control \
+    --name "${CLAUDE_SESSION_NAME:-homelab}" \
+    --permission-mode "${CLAUDE_PERMISSION_MODE:-default}" || true
+  echo "claude-entrypoint: remote-control exited; retrying in 30s (code-server stays up)" >&2
+  sleep 30
+  until logged_in; do sleep 30; done
+done

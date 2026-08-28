@@ -119,6 +119,22 @@ with an MFA policy. Client side: `cloudflared access ssh --hostname ssh.<domain>
 Skip the profile if the LAN already has an Access-gated SSH jump host that can
 reach the VM; that is strictly less to maintain.
 
+## Findings from first boot
+
+* **Headless server mode works** — no TTY needed. Two things had to be handled:
+  workspace trust must already be recorded (the entrypoint seeds it), and
+  `claude remote-control` asks `Enable Remote Control? (y/n)` on stdin and exits
+  on EOF, so the entrypoint pipes the answer in.
+* Remote Control runs in a supervised loop *inside* the container rather than
+  as the container's main process: if it exits (network outage, login expiry,
+  crash) code-server stays up and the loop retries every 30 s. Compose's restart
+  policy only matters if code-server itself dies.
+* The login callback (`localhost:<port>/callback`) can't reach the container
+  from a browser on another device. Either paste `CODE#STATE` from the failed
+  redirect URL at the `Paste code here if prompted` prompt, or rewrite the URL
+  to `https://code.<domain>/proxy/<port>/callback?...` — code-server proxies
+  `/proxy/<port>/` to `localhost:<port>` inside the container.
+
 ## Open points
 
 1. **Trust seeding** writes `projects["/workspace"].hasTrustDialogAccepted`
