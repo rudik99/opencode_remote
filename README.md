@@ -34,6 +34,7 @@ The host does not publish OpenCode, preview, browser, or Docker daemon ports. Cl
 - Basic-authenticated screenshot gallery at `screenshots.<PREVIEW_BASE_DOMAIN>`
 - Context7 and GitHub MCP templates
 - GitHub CLI HTTPS credential helper
+- Salesforce CLI for workspace-isolated authentication used by the official Salesforce MCP server
 - Official Claude Code CLI bridge with selectable `default`, `sonnet`, `opus`, and `haiku` models
 - Guarded `/claude` delegation command with read-only and file-edit modes
 - `/preview-deploy` and `/preview-destroy` commands

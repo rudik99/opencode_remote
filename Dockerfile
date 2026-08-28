@@ -26,6 +26,11 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
  && apt-get install -y --no-install-recommends nodejs \
  && rm -rf /var/lib/apt/lists/*
 
+# Salesforce CLI provides workspace-local OAuth state for the official Salesforce MCP server.
+ARG SALESFORCE_CLI_VERSION=latest
+RUN npm install -g "@salesforce/cli@${SALESFORCE_CLI_VERSION}" \
+ && sf --version
+
 # Official Claude Code CLI for subscription-backed delegated tasks.
 ARG CLAUDE_CODE_VERSION=latest
 RUN npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
