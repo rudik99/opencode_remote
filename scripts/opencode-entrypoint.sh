@@ -14,6 +14,9 @@ if [ -f "$lock_file" ]; then
     npm ci --omit=dev --ignore-scripts --no-audit --no-fund --prefix "$config_dir"
     printf '%s\n' "$lock_hash" > "$marker"
   fi
+elif [ -f "$config_dir/package.json" ]; then
+  echo "opencode-entrypoint: missing $lock_file; package-lock.json is required for plugin installation" >&2
+  exit 1
 fi
 
 exec opencode "$@"
