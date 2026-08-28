@@ -27,7 +27,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
  && rm -rf /var/lib/apt/lists/*
 
 # Salesforce CLI provides workspace-local OAuth state for the official Salesforce MCP server.
-ARG SALESFORCE_CLI_VERSION=2.149.9
+ARG SALESFORCE_CLI_VERSION=latest
 RUN npm install -g "@salesforce/cli@${SALESFORCE_CLI_VERSION}" \
  && sf --version
 
