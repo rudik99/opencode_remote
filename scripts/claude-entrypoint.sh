@@ -36,6 +36,14 @@ else
   printf '{"projects":{"/workspace":{"hasTrustDialogAccepted":true}}}\n' > "$cfg"
 fi
 
+# --- 2b. SSH ------------------------------------------------------------------
+# ~/.ssh is a persistent volume (keys, config, known_hosts survive rebuilds).
+# Seed GitHub's host key once so clones never prompt.
+mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
+if ! grep -qs '^github.com ' "$HOME/.ssh/known_hosts"; then
+  ssh-keyscan -t ed25519 github.com >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
+fi
+
 # --- 3. code-server -----------------------------------------------------------
 # VS Code over HTTP on :8080. --auth none: Cloudflare Access in front of
 # code.<domain> is the login. Started before the sign-in check so the iPad can

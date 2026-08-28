@@ -64,6 +64,7 @@ services:
       - ./data/claude/azure:/home/claude/.azure
       - ./data/claude/code-server:/home/claude/.local/share/code-server
       - ./data/claude/gh:/home/claude/.config/gh
+      - ./data/claude/ssh:/home/claude/.ssh
       - ./data/gitconfig:/home/claude/.gitconfig
       - ./preview/preview:/usr/local/bin/preview:ro
     expose:
