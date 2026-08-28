@@ -1,19 +1,23 @@
-# Visual Verification
+# Browser Verification Gate
 
-For tasks that create or materially change a browser-facing interface, use Playwright while building rather than relying only on source inspection. Start or reuse a reachable local application, verify its behavior through meaningful user interaction, and inspect console and request failures when relevant.
+For every task that creates or materially changes a browser-facing interface or user workflow, test the final implementation in Playwright before handing work back to the user. Source inspection, builds, typechecks, unit tests, HTML, accessibility snapshots, and HTTP responses do not replace this browser gate.
 
-After the changed flow works, call `playwright_browser_take_screenshot` so visual evidence is retained. Capture the state produced by the verified interaction, not merely an initial landing page. Do not pass `filename`; Playwright will generate a safe name under `/workspace/screenshots`. Do not use `page.screenshot()`, shell commands, or other file-only capture paths. This shared directory is outside project checkouts and is ignored by `/workspace/.gitignore`.
+Use an isolated local or published preview that is reachable from the Playwright browser. Do not use production as the primary test environment or deploy to production merely to verify a change. The browser runs outside the application's container, so do not assume application loopback `localhost` is reachable.
 
-OpenCode Web does not currently render image attachments returned by tools. After each capture, extract the generated basename from the screenshot tool result and include a clickable `https://screenshots.<PREVIEW_BASE_DOMAIN>/<url-encoded-basename>` link in the final response, replacing `<PREVIEW_BASE_DOMAIN>` with the configured value. Never claim that a local workspace path is directly viewable by the user.
+The verification must occur after the final relevant code change, rebuild, restart, or preview update. Any subsequent change to the tested behavior invalidates earlier browser evidence and requires the affected journey to be tested again. Evidence from an earlier implementation does not count.
 
-- A desktop screenshot is required for meaningful browser UI changes.
-- Add a mobile screenshot when the change affects responsive layout, navigation, forms, or other viewport-sensitive behavior.
-- Take additional screenshots only when distinct states are necessary to demonstrate the work; avoid noisy screenshot dumps.
-- Screenshots supplement behavioral assertions and do not replace hydration, interaction, console, network, or automated test checks.
-- Never capture secrets, credentials, private environment values, or sensitive user data. Use safe test data and close or obscure sensitive views before capture.
-- Do not claim visual verification from HTML, an accessibility snapshot, or an HTTP response alone.
-- If the application cannot be run or a screenshot cannot be produced, state the specific blocker in the final response instead of silently omitting visual evidence.
+Before claiming completion or recommending deployment:
 
-The browser runs outside the application's container. Use a URL reachable from the Playwright browser, such as the published preview URL or the DinD service and reserved port; do not assume an application's loopback `localhost` is reachable.
+1. Start at a normal user entry point and perform the changed journey through visible links, buttons, labels, and form controls. Do not deep-link past behavior that the task changed.
+2. Require every relevant Playwright action to finish successfully. A `running`, failed, timed-out, stale, or truncated tool result is not evidence of success.
+3. Assert the resulting visible state and persistence that matter to the task, including refresh or back navigation when relevant.
+4. Inspect browser console errors after the final interaction. Success requires zero unexplained errors; identify and justify any known unrelated errors.
+5. Inspect the relevant network request when the workflow reads or writes data. Confirm the expected endpoint, parameters or payload, and successful status after the final interaction.
+6. Test a desktop viewport. Also test a mobile viewport when navigation, forms, dialogs, responsive layout, or touch-sized controls are affected.
+7. Call `playwright_browser_take_screenshot` after the verified interaction. Capture meaningful final states, not only a landing page. Do not pass `filename`; Playwright will write safely under `/workspace/screenshots`.
 
-Persisted browser artifacts are automatically limited to 500 MiB. The user can explicitly remove retained screenshots with `/clear-screenshots`.
+Screenshots supplement behavioral assertions; they never replace interaction, console, network, hydration, or automated test checks. Never capture secrets, credentials, private environment values, or sensitive user data. Use safe test data and avoid irreversible actions.
+
+The final response for a browser-facing change must include a concise `Browser verification` block with the tested URL, journey, relevant network result, console result, viewports, screenshot links, and `PASS`, `FAIL`, or `BLOCKED`. Do not say the work is verified when any required action is incomplete. If the preview cannot run or the gate cannot pass, state the blocker and hand the work back as incomplete.
+
+OpenCode Web does not render image attachments returned by tools. Convert each generated screenshot basename into a clickable `https://screenshots.<PREVIEW_BASE_DOMAIN>/<url-encoded-basename>` link, replacing `<PREVIEW_BASE_DOMAIN>` with the configured value. Never claim that a local workspace path is directly viewable by the user. Persisted browser artifacts are limited to 500 MiB and can be removed with `/clear-screenshots`.
