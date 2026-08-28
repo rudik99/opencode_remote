@@ -40,6 +40,8 @@ The host does not publish OpenCode, preview, browser, or Docker daemon ports. Cl
 - `/preview-deploy` and `/preview-destroy` commands
 - `/reload-workspace` command for reloading project config and MCP servers without restarting the container
 - Enforced pre-handoff browser verification and `/test-like-a-human` acceptance command
+- Context-aware PR follow-through with inline feedback resolution and `/pr-follow-through`
+- Proportional validation rules that keep simple tasks fast and reserve expensive checks for matching risks
 - Hardened preview instructions covering production builds, Compose overrides, bootstrap, hydration checks, data preservation, and orphan cleanup
 - Common development tools including Git, Git LFS, GitHub CLI, Node 22, Python 3, `nano`, `rg`, `fd`, and a compiler toolchain
 
@@ -167,6 +169,20 @@ Run a specific acceptance journey from OpenCode Web with:
 ```
 
 The command requires normal user navigation, completed interactions, final-state assertions, console and relevant network inspection, applicable desktop and mobile checks, screenshots, and a `PASS`, `FAIL`, or `BLOCKED` evidence block. Production checks are optional follow-up smoke tests, not substitutes for pre-handoff preview verification.
+
+## Pull Request Follow-Through
+
+When OpenCode creates or updates a pull request, it detects whether that repository has active CI, automated review, or security agents. If automation exists, OpenCode waits for the latest revision, fixes actionable feedback, validates and pushes a new commit, replies on each originating inline thread with the fix and evidence, resolves that thread, and repeats until the PR is clean. It does not wait for human approval. OpenCode never merges pull requests; merging is always reserved for the human user.
+
+Repositories without applicable automation incur only a short registration check and are not blocked indefinitely. Resume the loop explicitly from OpenCode Web with:
+
+```text
+/pr-follow-through
+```
+
+## Proportional Execution
+
+OpenCode classifies task risk before selecting validation. Documentation and metadata changes avoid builds and browser work; isolated logic changes use focused tests; browser-facing work gets one conclusive pre-handoff journey; production packaging and high-risk behavior receive the heavier checks they warrant. Validation proceeds from cheapest to most expensive, repeated full builds and preview updates are bounded, static package operations do not start infrastructure, and simple tasks do not launch subagents.
 
 ## Claude Code Subscription Delegation
 
