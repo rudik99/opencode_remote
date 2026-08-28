@@ -49,6 +49,7 @@ Use the `preview` helper and the Docker daemon at `DOCKER_HOST`. Cloudflare is c
    ```yaml
    services:
       web:
+        init: true
         ports: !override
           - "31000:3000"
         environment:
@@ -58,10 +59,11 @@ Use the `preview` helper and the Docker daemon at `DOCKER_HOST`. Cloudflare is c
           args:
             NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?required}
       database:
+        init: true
         ports: !reset []
    ```
 
-   Replace the example port with the reservation. Apply `ports: !reset []` to every service other than the previewed HTTP service, including databases, caches, APIs, and development servers. Internal service-to-service networking does not require published host ports. YAML language servers may report `!override` and `!reset` as unresolved tags; these are valid Compose tags, and `docker compose config` is authoritative.
+   Replace the example port with the reservation. Set `init: true` on every service so orphaned build, test, browser, and application child processes are reaped instead of accumulating as host zombies. Apply `ports: !reset []` to every service other than the previewed HTTP service, including databases, caches, APIs, and development servers. Internal service-to-service networking does not require published host ports. YAML language servers may report `!override` and `!reset` as unresolved tags; these are valid Compose tags, and `docker compose config` is authoritative.
 7. Explicitly allowlist each required runtime variable under the target service's `environment:`. Put public origins, callback URLs, browser-visible API URLs, and similar hostname-dependent values in the preview override. Compose service `environment:` overrides both `env_file:` and image values, so changing only an env file cannot replace a value hard-coded by the base Compose file. Use build arguments only for non-secret values that must be embedded into a frontend build. Use BuildKit or Compose secrets for sensitive build inputs; Docker build arguments can persist in image metadata or layers.
 8. Validate the fully merged configuration with the exact environment arguments, files, and variables that will be used. Never print raw resolved configuration because it contains secrets:
 
