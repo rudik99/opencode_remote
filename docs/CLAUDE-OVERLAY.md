@@ -24,8 +24,9 @@ docs/CLAUDE-OVERLAY.md          this file
   same checkouts.
 * Everything Claude needs to survive a rebuild is on `./data/claude/`:
   `config/` = `CLAUDE_CONFIG_DIR` (`.credentials.json`, `.claude.json` with MCP
-  registrations and workspace trust) and `azure/` = `AZURE_CONFIG_DIR`
-  (`az login` state used by the `mssql-readonly` MCP server).
+  registrations and workspace trust), `azure/` = `AZURE_CONFIG_DIR`
+  (`az login` state used by the `mssql-readonly` MCP server), and `aws/` =
+  AWS CLI configuration and SSO tokens.
 
 ## Install
 
@@ -86,8 +87,9 @@ a Cloudflare Access application (MFA policy) in front — Access *is* the login.
 It opens `/workspace`; its terminal is where `claude`, `claude auth login`,
 `gh auth login` and `aws sso login --use-device-code` run from the iPad.
 Extensions/settings persist on `./data/claude/code-server`; `gh` login on
-`./data/claude/gh`. The Claude Code extension (`Anthropic.claude-code`, Open VSX)
-is installed by the entrypoint on first start and persists on that volume.
+`./data/claude/gh`; AWS configuration and SSO tokens on `./data/claude/aws`.
+The Claude Code extension (`Anthropic.claude-code`, Open VSX) is installed by
+the entrypoint on first start and persists on that volume.
 
 ## Operating notes
 
@@ -127,8 +129,9 @@ reach the VM; that is strictly less to maintain.
   on EOF, so the entrypoint pipes the answer in.
 * Remote Control runs in a supervised loop *inside* the container rather than
   as the container's main process: if it exits (network outage, login expiry,
-  crash) code-server stays up and the loop retries every 30 s. Compose's restart
-  policy only matters if code-server itself dies.
+  crash) code-server stays up and the loop retries every 30 s. code-server is
+  the foreground process, so its exit stops the container and Compose restarts
+  it.
 * The login callback (`localhost:<port>/callback`) can't reach the container
   from a browser on another device. Either paste `CODE#STATE` from the failed
   redirect URL at the `Paste code here if prompted` prompt, or rewrite the URL

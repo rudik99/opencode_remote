@@ -15,11 +15,11 @@ case "$runtime_uid:$runtime_gid" in
   *[!0-9:]*|:|*:|:*) echo "OPENCODE_UID and OPENCODE_GID in .env must be numeric" >&2; exit 1 ;;
 esac
 
-for path in data/claude data/claude/config data/claude/azure data/claude/code-server data/claude/gh data/claude/ssh; do
+for path in data/claude data/claude/config data/claude/azure data/claude/aws data/claude/code-server data/claude/gh data/claude/ssh; do
   [ ! -L "$path" ] || { echo "Bootstrap path must not be a symlink: $path" >&2; exit 1; }
 done
-mkdir -p data/claude/config data/claude/azure data/claude/code-server data/claude/gh data/claude/ssh
-chmod 0700 data/claude/config data/claude/azure data/claude/code-server data/claude/gh data/claude/ssh
+mkdir -p data/claude/config data/claude/azure data/claude/aws data/claude/code-server data/claude/gh data/claude/ssh
+chmod 0700 data/claude/config data/claude/azure data/claude/aws data/claude/code-server data/claude/gh data/claude/ssh
 
 add_var() {
   # add_var NAME DEFAULT  -> append "NAME=DEFAULT" unless NAME= already exists

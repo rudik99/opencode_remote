@@ -62,6 +62,7 @@ services:
       - ./data/workspace:/workspace
       - ./data/claude/config:/home/claude/.claude
       - ./data/claude/azure:/home/claude/.azure
+      - ./data/claude/aws:/home/claude/.aws
       - ./data/claude/code-server:/home/claude/.local/share/code-server
       - ./data/claude/gh:/home/claude/.config/gh
       - ./data/claude/ssh:/home/claude/.ssh
