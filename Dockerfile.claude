@@ -1,0 +1,101 @@
+# Claude Code agent image for the opencode_remote stack.
+# Mirrors ./Dockerfile (the OpenCode image) so both containers share one
+# toolchain; ./Dockerfile itself is not modified.
+FROM debian:bookworm-slim
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PATH="/home/claude/.local/bin:/usr/local/bin:${PATH}"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential ca-certificates curl fd-find git git-lfs gh gnupg \
+      jq less nano openssh-client procps python3 python3-pip python3-venv \
+      ripgrep unzip \
+ && ln -s /usr/bin/fdfind /usr/local/bin/fd \
+ && rm -rf /var/lib/apt/lists/*
+
+# Docker CLI with Buildx and Compose; the daemon is the stack's dind service.
+RUN install -m 0755 -d /etc/apt/keyrings \
+ && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
+ && chmod a+r /etc/apt/keyrings/docker.asc \
+ && . /etc/os-release \
+ && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian ${VERSION_CODENAME} stable" \
+      > /etc/apt/sources.list.d/docker.list \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+      docker-buildx-plugin docker-ce-cli docker-compose-plugin \
+ && rm -rf /var/lib/apt/lists/*
+
+# Node 22 for local MCP servers (mssql-readonly, context7) and JS projects.
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+ && apt-get install -y --no-install-recommends nodejs \
+ && rm -rf /var/lib/apt/lists/*
+
+# pnpm/yarn via corepack, and the AWS CLI v2 so `aws sso login --use-device-code`
+# can be run from the code-server terminal. Arch-aware so the image also builds on arm64.
+RUN corepack enable
+RUN arch=$(uname -m) \
+ && curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-${arch}.zip" -o /tmp/awscli.zip \
+ && unzip -q /tmp/awscli.zip -d /tmp && /tmp/aws/install && rm -rf /tmp/aws /tmp/awscli.zip
+
+# Azure CLI: the mssql-readonly MCP server authenticates to Azure Synapse with
+# DefaultAzureCredential (SQLSERVER_AUTH_MODE=aad-default), which resolves to
+# the `az` login stored under AZURE_CONFIG_DIR (a persistent volume).
+RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash \
+ && rm -rf /var/lib/apt/lists/*
+
+# mssql-readonly MCP server, built into the image at a fixed ref.
+ARG MCP_SQLSERVER_REPO=https://github.com/trainerroad/mcp-sqlserver.git
+ARG MCP_SQLSERVER_REF=main
+RUN git clone --depth 1 --branch "${MCP_SQLSERVER_REF}" "${MCP_SQLSERVER_REPO}" /opt/mcp-sqlserver \
+ && cd /opt/mcp-sqlserver \
+ && npm ci \
+ && npm run build \
+ && npm prune --omit=dev \
+ && npm cache clean --force
+
+RUN printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/xdg-open \
+ && chmod +x /usr/local/bin/xdg-open
+
+ARG CLAUDE_UID=1000
+ARG CLAUDE_GID=1000
+RUN if getent group "${CLAUDE_GID}" >/dev/null; then \
+      group_name=$(getent group "${CLAUDE_GID}" | cut -d: -f1); \
+    else \
+      group_name=claude; \
+      groupadd -g "${CLAUDE_GID}" "${group_name}"; \
+    fi \
+ && useradd -m -u "${CLAUDE_UID}" -g "${group_name}" -s /bin/bash claude \
+ && mkdir -p /workspace \
+ && chown "${CLAUDE_UID}:${CLAUDE_GID}" /workspace /opt/mcp-sqlserver
+
+USER claude
+WORKDIR /home/claude
+
+RUN mkdir -p /home/claude/.ssh /home/claude/.claude /home/claude/.azure /home/claude/.local/bin /home/claude/.local/share/code-server /home/claude/.config/gh \
+ && (ssh-keyscan github.com >> /home/claude/.ssh/known_hosts 2>/dev/null || true)
+
+# code-server (VS Code over HTTP) in the same container as Remote Control, so
+# the iPad gets a file tree, a terminal and a place to run device-code logins.
+# Extensions are installed by the entrypoint at runtime: the extension dir is
+# on a persistent volume, so anything installed here would be shadowed.
+RUN curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=/home/claude/.local
+
+# Native Claude Code install. Pin CLAUDE_CODE_VERSION in .env before leaving the
+# box unattended; "latest" is only sensible while iterating.
+ARG CLAUDE_CODE_VERSION=latest
+RUN curl -fsSL https://claude.ai/install.sh | bash -s "${CLAUDE_CODE_VERSION}" \
+ && /home/claude/.local/bin/claude --version
+
+# CLAUDE_CONFIG_DIR keeps .credentials.json AND .claude.json on the mounted
+# volume, so login + MCP registrations + workspace trust survive rebuilds.
+# DISABLE_AUTOUPDATER keeps the image at the version it was built with.
+ENV CLAUDE_CONFIG_DIR=/home/claude/.claude \
+    AZURE_CONFIG_DIR=/home/claude/.azure \
+    DISABLE_AUTOUPDATER=1
+
+# Scripts last, so editing them never invalidates the install layers above.
+COPY --chmod=0755 scripts/claude-entrypoint.sh /usr/local/bin/claude-entrypoint
+COPY --chmod=0755 scripts/claude-setup-mcp.sh  /usr/local/bin/claude-setup-mcp
+
+WORKDIR /workspace
+ENTRYPOINT ["claude-entrypoint"]

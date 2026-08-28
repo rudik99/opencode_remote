@@ -1,0 +1,104 @@
+# Claude Code overlay for rudik99/opencode_remote.
+#
+# Adds two services and touches nothing in compose.yaml:
+#   claude          - Claude Code in Remote Control server mode (outbound only)
+#                     + code-server (VS Code over HTTP) on :8080, published via
+#                     the base stack's cloudflared tunnel as code.<domain>
+#   cloudflared-ssh - OPTIONAL second tunnel that exposes the VM's own sshd
+#                     (profile "ssh-tunnel"; not needed when an SSH jump host
+#                     already exists on the LAN)
+#
+# Usage:
+#   docker compose -f compose.yaml -f compose.claude.yaml config      # validate merge
+#   docker compose -f compose.yaml -f compose.claude.yaml up -d --build
+#   docker compose -f compose.yaml -f compose.claude.yaml --profile ssh-tunnel up -d
+#
+# See docs/CLAUDE-OVERLAY.md.
+
+services:
+  claude:
+    build:
+      context: .
+      dockerfile: Dockerfile.claude
+      args:
+        CLAUDE_CODE_VERSION: ${CLAUDE_CODE_VERSION:-latest}
+        CLAUDE_UID: ${OPENCODE_UID:-1000}
+        CLAUDE_GID: ${OPENCODE_GID:-1000}
+        MCP_SQLSERVER_REPO: ${MCP_SQLSERVER_REPO:-https://github.com/trainerroad/mcp-sqlserver.git}
+        MCP_SQLSERVER_REF: ${MCP_SQLSERVER_REF:-main}
+    image: local/claude-remote:${CLAUDE_TAG:-latest}
+    restart: unless-stopped
+    init: true
+    working_dir: /workspace
+    # Same uid/gid as the opencode service so the shared bind mounts stay writable.
+    user: ${OPENCODE_UID:-1000}:${OPENCODE_GID:-1000}
+    environment:
+      CLAUDE_CONFIG_DIR: /home/claude/.claude
+      AZURE_CONFIG_DIR: /home/claude/.azure
+      DISABLE_AUTOUPDATER: "1"
+      CLAUDE_SESSION_NAME: ${CLAUDE_SESSION_NAME:-homelab}
+      CLAUDE_PERMISSION_MODE: ${CLAUDE_PERMISSION_MODE:-default}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GH_TOKEN: ${GITHUB_TOKEN:-}
+      CONTEXT7_API_KEY: ${CONTEXT7_API_KEY:-}
+      # Same tool endpoints the opencode service gets.
+      DOCKER_HOST: tcp://dind:2375
+      PLAYWRIGHT_CDP_URL: http://chromium:3000
+      CHROME_URL: http://chromium:3000
+      PREVIEW_BASE_DOMAIN: ${PREVIEW_BASE_DOMAIN:?set PREVIEW_BASE_DOMAIN}
+      PREVIEW_ROUTER_URL: http://preview-router:2019
+      # mssql-readonly MCP server (inherited by the MCP child process).
+      SQLSERVER_HOST: ${SQLSERVER_HOST:-}
+      SQLSERVER_DATABASE: ${SQLSERVER_DATABASE:-}
+      SQLSERVER_AUTH_MODE: ${SQLSERVER_AUTH_MODE:-aad-default}
+      SQLSERVER_ENCRYPT: "true"
+      SQLSERVER_TRUST_CERT: "false"
+      SQLSERVER_REQUEST_TIMEOUT: "300000"
+      # Optional Python MCP server cloned into /workspace by claude-setup-mcp.
+      ERD_REPO: ${ERD_REPO:-}
+      # ANTHROPIC_BASE_URL / ANTHROPIC_API_KEY / CLAUDE_CODE_USE_* are deliberately
+      # NOT passed through: any of them makes Remote Control ineligible.
+    volumes:
+      - ./data/workspace:/workspace
+      - ./data/claude/config:/home/claude/.claude
+      - ./data/claude/azure:/home/claude/.azure
+      - ./data/claude/aws:/home/claude/.aws
+      - ./data/claude/code-server:/home/claude/.local/share/code-server
+      - ./data/claude/gh:/home/claude/.config/gh
+      - ./data/claude/ssh:/home/claude/.ssh
+      - ./data/gitconfig:/home/claude/.gitconfig
+      - ./preview/preview:/usr/local/bin/preview:ro
+    expose:
+      - "8080"
+    networks:
+      - opencode
+    # No depends_on on purpose: this container is the reason the box exists and
+    # must come up even if dind/chromium/preview-router are unhealthy.
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: ${CLAUDE_MEMORY_LIMIT:-4g}
+    cpus: ${CLAUDE_CPU_LIMIT:-4}
+    healthcheck:
+      # healthy = code-server answering; Remote Control state is visible in logs
+      # and in the Claude app, and is intentionally not part of the healthcheck.
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/healthz >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  cloudflared-ssh:
+    profiles: ["ssh-tunnel"]
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      # Soft default on purpose: Compose interpolates ":?" even for profile-disabled
+      # services, so a hard requirement here would break the base stack.
+      TUNNEL_TOKEN: ${CLOUDFLARE_SSH_TUNNEL_TOKEN:-}
+    # Points the tunnel at the VM's own sshd, not a container, so the shell
+    # still works when the rest of the stack is down.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - opencode
