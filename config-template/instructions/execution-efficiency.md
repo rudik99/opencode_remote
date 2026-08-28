@@ -24,4 +24,6 @@ Search local exact-version source first. After identifying the active implementa
 
 Keep substantial work durable before long-running builds or ending a turn. Do not leave the only copy in a temporary worktree. Do not duplicate equivalent validation across branches when the behavior and dependency base are unchanged.
 
+When manually creating a Git worktree, place it under the primary checkout at `<repository>/.worktrees/<name>`. Before creating the first one, add `.worktrees/` to that repository's local `.git/info/exclude` and verify Git ignores it; do not modify the tracked `.gitignore` solely for this local convention. Do not create manual worktrees as workspace siblings, under `/tmp`, under the home directory, or anywhere else outside the project unless the user explicitly requests that location. This rule does not relocate worktrees created through OpenCode's built-in worktree feature, which manages and authorizes its own data-directory sandboxes.
+
 If an operation runs longer than three minutes, tell the user what is still running and why. Stop it if it unexpectedly starts unrelated infrastructure. Do not silently retry slow commands. Stop when the acceptance criteria and risk-appropriate evidence are satisfied; do not expand scope without a concrete finding.
