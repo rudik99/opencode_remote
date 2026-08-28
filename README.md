@@ -39,6 +39,7 @@ The host does not publish OpenCode, preview, browser, or Docker daemon ports. Cl
 - Guarded `/claude` delegation command with read-only and file-edit modes
 - `/preview-deploy` and `/preview-destroy` commands
 - `/reload-workspace` command for reloading project config and MCP servers without restarting the container
+- Enforced pre-handoff browser verification and `/test-like-a-human` acceptance command
 - Hardened preview instructions covering production builds, Compose overrides, bootstrap, hydration checks, data preservation, and orphan cleanup
 - Common development tools including Git, Git LFS, GitHub CLI, Node 22, Python 3, `nano`, `rg`, `fd`, and a compiler toolchain
 
@@ -154,6 +155,18 @@ Reload the affected workspace after changing project configuration, commands, ag
 ```
 
 This disposes and recreates only the current workspace instance. Recreate the OpenCode container when changing its image or process-level environment variables.
+
+## Human Browser Verification
+
+Browser-facing changes must pass an isolated Playwright acceptance check after the final implementation change and before OpenCode hands the work back or recommends production deployment. Later code changes, rebuilds, restarts, or preview updates invalidate earlier browser evidence.
+
+Run a specific acceptance journey from OpenCode Web with:
+
+```text
+/test-like-a-human complete checkout as a first-time customer
+```
+
+The command requires normal user navigation, completed interactions, final-state assertions, console and relevant network inspection, applicable desktop and mobile checks, screenshots, and a `PASS`, `FAIL`, or `BLOCKED` evidence block. Production checks are optional follow-up smoke tests, not substitutes for pre-handoff preview verification.
 
 ## Claude Code Subscription Delegation
 
