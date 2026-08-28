@@ -2,7 +2,9 @@
 
 For tasks that create or materially change a browser-facing interface, use Playwright while building rather than relying only on source inspection. Start or reuse a reachable local application, verify its behavior through meaningful user interaction, and inspect console and request failures when relevant.
 
-After the changed flow works, call Playwright's screenshot tool so visual evidence appears inline in chat. Capture the state produced by the verified interaction, not merely an initial landing page. Use a concise project-and-state filename that is a single basename without `/`, `\\`, or `..`; screenshots are persisted under `/workspace/.opencode-artifacts/screenshots`.
+After the changed flow works, call `playwright_browser_take_screenshot` so visual evidence is retained. Capture the state produced by the verified interaction, not merely an initial landing page. Do not pass `filename`; Playwright will generate a safe name under `/workspace/screenshots`. Do not use `page.screenshot()`, shell commands, or other file-only capture paths. This shared directory is outside project checkouts and is ignored by `/workspace/.gitignore`.
+
+OpenCode Web does not currently render image attachments returned by tools. After each capture, extract the generated basename from the screenshot tool result and include a clickable `https://screenshots.<PREVIEW_BASE_DOMAIN>/<url-encoded-basename>` link in the final response, replacing `<PREVIEW_BASE_DOMAIN>` with the configured value. Never claim that a local workspace path is directly viewable by the user.
 
 - A desktop screenshot is required for meaningful browser UI changes.
 - Add a mobile screenshot when the change affects responsive layout, navigation, forms, or other viewport-sensitive behavior.

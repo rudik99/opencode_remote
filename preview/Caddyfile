@@ -4,5 +4,10 @@
 }
 
 :80 {
+	@screenshots host screenshots.{$PREVIEW_BASE_DOMAIN}
+	handle @screenshots {
+		reverse_proxy screenshot-viewer:8080
+	}
+
 	respond "No preview is registered for this hostname.\n" 404
 }

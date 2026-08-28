@@ -23,7 +23,7 @@
         "--image-responses",
         "allow",
         "--output-dir",
-        "/workspace/.opencode-artifacts/screenshots",
+        "/workspace/screenshots",
         "--output-max-size",
         "524288000"
       ],
