@@ -16,6 +16,7 @@ Usage:
   preview reserve <slug> [project-directory]
   preview publish <slug>
   preview remove <slug>
+  preview reload
   preview env <slug>
   preview list
   preview url <slug>
@@ -27,6 +28,11 @@ validate_slug() {
     ''|*[!a-z0-9-]*|-*|*-) echo "Invalid slug: use lowercase letters, numbers, and internal hyphens" >&2; exit 2 ;;
   esac
   [ "${#1}" -le 63 ] || { echo "Invalid slug: maximum length is 63 characters" >&2; exit 2; }
+}
+
+validate_publish_slug() {
+  validate_slug "$1"
+  [ "$1" != screenshots ] || { echo "Reserved preview slug: screenshots" >&2; exit 2; }
 }
 
 acquire_lock() {
@@ -45,11 +51,15 @@ release_lock() {
 render_config() {
   source_file=$1
   output_file=$2
-  jq '{
+  jq --arg viewer_hostname "screenshots.$BASE_DOMAIN" '{
     admin: {listen: "0.0.0.0:2019"},
     apps: {http: {servers: {preview: {
       listen: [":80"],
-      routes: ([to_entries[] | select(.value.status == "active") | {
+      routes: ([{
+        match: [{host: [$viewer_hostname]}],
+        handle: [{handler: "reverse_proxy", upstreams: [{dial: "screenshot-viewer:8080"}]}],
+        terminal: true
+      }] + [to_entries[] | select(.value.status == "active") | {
         match: [{host: [.value.hostname]}],
         handle: [{handler: "reverse_proxy", upstreams: [{dial: ("dind:" + (.value.port | tostring))}]}],
         terminal: true
@@ -101,7 +111,7 @@ case "$command" in
     ;;
   reserve)
     slug=${2:-}
-    validate_slug "$slug"
+    validate_publish_slug "$slug"
     project=${3:-$PWD}
     acquire_lock
     trap release_lock EXIT INT TERM
@@ -132,7 +142,7 @@ case "$command" in
     ;;
   publish)
     slug=${2:-}
-    validate_slug "$slug"
+    validate_publish_slug "$slug"
     acquire_lock
     trap release_lock EXIT INT TERM
     port=$(jq -r --arg slug "$slug" '.[$slug].port // empty' "$REGISTRY")
@@ -154,6 +164,11 @@ case "$command" in
     jq --arg slug "$slug" 'del(.[$slug])' "$REGISTRY" > "$candidate"
     load_config "$candidate"
     mv "$candidate" "$REGISTRY"
+    ;;
+  reload)
+    acquire_lock
+    trap release_lock EXIT INT TERM
+    load_config "$REGISTRY"
     ;;
   list)
     jq -r 'to_entries[] | [.key, (.value.port | tostring), .value.status, .value.hostname, .value.project] | @tsv' "$REGISTRY"

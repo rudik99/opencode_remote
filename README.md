@@ -15,6 +15,11 @@ Project preview hostname
   -> wildcard Cloudflare Tunnel route
   -> Caddy preview router
   -> port published by an application inside DinD
+
+Screenshot hostname
+  -> wildcard Cloudflare Tunnel route
+  -> Caddy preview router
+  -> authenticated read-only screenshot viewer
 ```
 
 The host does not publish OpenCode, preview, browser, or Docker daemon ports. Cloudflared reaches services over the private Compose network.
@@ -26,6 +31,7 @@ The host does not publish OpenCode, preview, browser, or Docker daemon ports. Cl
 - Docker 29 DinD daemon with Docker Compose and Buildx in OpenCode
 - Caddy wildcard preview router with dynamic, persistent routes
 - Browserless Chromium and Playwright MCP
+- Basic-authenticated screenshot gallery at `screenshots.<PREVIEW_BASE_DOMAIN>`
 - Context7 and GitHub MCP templates
 - GitHub CLI HTTPS credential helper
 - Official Claude Code CLI bridge with selectable `default`, `sonnet`, `opus`, and `haiku` models
@@ -244,7 +250,7 @@ The deployment procedure:
 4. Removes unrelated host port publishing with Compose `!reset` and `!override` tags.
 5. Builds, migrates, seeds, and starts the application in DinD.
 6. Publishes `<slug>.<PREVIEW_BASE_DOMAIN>` through Caddy.
-7. Uses Playwright to prove that the application hydrated and a meaningful interaction works, then posts a screenshot of the verified state inline in chat.
+7. Uses Playwright to prove that the application hydrated and a meaningful interaction works, then posts an authenticated screenshot link.
 
 HTTP `200` and server-rendered HTML are deliberately not considered sufficient proof of success.
 
@@ -284,11 +290,23 @@ The same ordered `--env-file` arguments must be reused for validation, build, st
 
 ## Visual Verification
 
-Visual verification applies to all meaningful browser-facing work, not only `/preview-deploy`. The global instruction asks OpenCode to run or reuse a reachable application while building, verify a real interaction, and post a desktop screenshot of the resulting state inline in chat. It also requests a mobile screenshot when responsive behavior is relevant.
+Visual verification applies to all meaningful browser-facing work, not only `/preview-deploy`. The global instruction asks OpenCode to run or reuse a reachable application while building, verify a real interaction, and post an authenticated link to a desktop screenshot of the resulting state. It also requests a mobile screenshot when responsive behavior is relevant.
 
 Screenshots supplement behavioral, console, network, and automated checks rather than replacing them. The instruction prohibits capturing secrets, credentials, private environment values, or sensitive user data.
 
-Retained files are stored in `/workspace/.opencode-artifacts/screenshots`. Playwright limits its output to 500 MiB and evicts older artifacts as needed. To clear retained image files manually while preserving the artifact directory, run:
+Retained files are stored in the shared `/workspace/screenshots` directory, outside project checkouts. Bootstrap adds `/screenshots/` to `/workspace/.gitignore` as an additional safeguard. Playwright limits its output to 500 MiB and evicts older artifacts as needed.
+
+Open the gallery at:
+
+```text
+https://screenshots.<PREVIEW_BASE_DOMAIN>
+```
+
+The viewer uses the same Basic Auth username and password as OpenCode, serves only flat PNG, JPEG, and WebP files from the screenshot directory, and mounts that directory read-only. OpenCode Web does not currently render tool-result images inline, so agents return clickable gallery links instead.
+
+The `screenshots` preview slug is reserved for this viewer. Remove or rename any existing project preview using that slug before upgrading.
+
+To clear retained image files manually while preserving the screenshot directory, run:
 
 ```text
 /clear-screenshots
@@ -331,10 +349,20 @@ Pin `OPENCODE_VERSION` and image tags for reproducible or production-oriented in
 
 Bootstrap does not overwrite an existing `data/config`. When an update changes `config-template`, back up `data/config`, selectively copy or merge the new configuration, commands, skills, and instructions, then restart OpenCode.
 
+When adding the screenshot viewer to an existing installation, rerun `./scripts/bootstrap.sh` to create `/workspace/screenshots` and its ignore rule, merge the updated configuration template, then recreate the affected services and reload the preserved preview registry:
+
+```bash
+docker compose up -d --force-recreate screenshot-viewer preview-router opencode --wait
+docker compose exec opencode preview reload
+```
+
+Older installations may retain files under `data/workspace/.opencode-artifacts/screenshots`. They are not migrated or managed by the updated `/clear-screenshots` command; inspect them and remove them manually after preserving anything needed.
+
 ## Security
 
 - Put Cloudflare Access with MFA in front of both OpenCode and wildcard preview hostnames.
 - Use a long OpenCode server password as defense in depth.
+- The screenshot viewer reuses OpenCode Basic Auth and must remain behind the wildcard tunnel and Cloudflare Access; do not publish its port directly.
 - Never publish or tunnel DinD port `2375`; it is an unauthenticated privileged Docker API on the private Compose network.
 - DinD itself is privileged. Anyone who can execute unrestricted commands in OpenCode can control its nested containers and data.
 - Use repository-scoped GitHub credentials and rotate tokens after accidental disclosure.

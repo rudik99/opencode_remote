@@ -98,6 +98,39 @@ services:
     mem_limit: 2g
     cpus: 2
 
+  screenshot-viewer:
+    image: node:22-alpine
+    init: true
+    restart: unless-stopped
+    user: ${OPENCODE_UID:-1000}:${OPENCODE_GID:-1000}
+    read_only: true
+    command: ["node", "/app/server.mjs"]
+    environment:
+      SCREENSHOT_ROOT: /screenshots
+      VIEWER_USERNAME: ${OPENCODE_SERVER_USERNAME:-opencode}
+      VIEWER_PASSWORD: ${OPENCODE_SERVER_PASSWORD:?set OPENCODE_SERVER_PASSWORD}
+    volumes:
+      - ./screenshot-viewer/server.mjs:/app/server.mjs:ro
+      - ./data/workspace/screenshots:/screenshots:ro
+    expose:
+      - "8080"
+    networks:
+      - opencode
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m
+    mem_limit: 128m
+    cpus: 0.25
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
   preview-router:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -106,11 +139,16 @@ services:
       - ./preview/Caddyfile:/etc/caddy/Caddyfile:ro
       - preview-router-config:/config
       - preview-router-data:/data
+    environment:
+      PREVIEW_BASE_DOMAIN: ${PREVIEW_BASE_DOMAIN:?set PREVIEW_BASE_DOMAIN}
     expose:
       - "80"
       - "2019"
     networks:
       - opencode
+    depends_on:
+      screenshot-viewer:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:2019/config/ >/dev/null"]
       interval: 15s

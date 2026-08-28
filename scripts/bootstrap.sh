@@ -32,6 +32,13 @@ else
   runtime_gid=$configured_gid
 fi
 
+if [ "$(uname -s)" = Linux ] && [ "$host_uid" -ne 0 ] \
+    && { [ "$runtime_uid" -ne "$host_uid" ] || [ "$runtime_gid" -ne "$host_gid" ]; }; then
+  echo "Cannot bootstrap bind mounts as $host_uid:$host_gid for configured runtime $runtime_uid:$runtime_gid." >&2
+  echo "Align OPENCODE_UID/OPENCODE_GID or run bootstrap as root so ownership can be corrected." >&2
+  exit 1
+fi
+
 for path in data data/config data/previews data/state data/workspace data/gitconfig; do
   [ ! -L "$path" ] || { echo "Bootstrap path must not be a symlink: $path" >&2; exit 1; }
 done
@@ -43,14 +50,26 @@ for path in data data/config data/previews data/state data/workspace; do
     || { echo "Bootstrap path is not a directory: $path" >&2; exit 1; }
 done
 
-for path in data/workspace/.opencode-artifacts data/workspace/.opencode-artifacts/screenshots; do
+for path in data/workspace/screenshots; do
   [ ! -L "$path" ] || { echo "Bootstrap path must not be a symlink: $path" >&2; exit 1; }
   if [ ! -e "$path" ]; then
-    (umask 077 && mkdir "$path")
+    (umask 007 && mkdir "$path")
   fi
   [ -d "$path" ] && [ ! -L "$path" ] \
     || { echo "Bootstrap path is not a directory: $path" >&2; exit 1; }
 done
+chmod 0770 data/workspace/screenshots
+
+workspace_ignore=data/workspace/.gitignore
+[ ! -L "$workspace_ignore" ] || { echo "Bootstrap path must not be a symlink: $workspace_ignore" >&2; exit 1; }
+if [ -e "$workspace_ignore" ]; then
+  [ -f "$workspace_ignore" ] || { echo "Bootstrap path is not a regular file: $workspace_ignore" >&2; exit 1; }
+  if ! grep -Fqx '/screenshots/' "$workspace_ignore"; then
+    printf '\n/screenshots/\n' >> "$workspace_ignore"
+  fi
+else
+  (umask 077 && printf '/screenshots/\n' > "$workspace_ignore")
+fi
 
 if [ ! -f data/config/opencode.jsonc ]; then
   cp -R config-template/. data/config/
@@ -64,8 +83,6 @@ chmod 0755 preview/preview
 
 if [ "$host_uid" -eq 0 ]; then
   chown -R "$runtime_uid:$runtime_gid" data
-elif [ "$(uname -s)" = Linux ] && { [ "$runtime_uid" -ne "$host_uid" ] || [ "$runtime_gid" -ne "$host_gid" ]; }; then
-  echo "Warning: .env uses $runtime_uid:$runtime_gid but the host user is $host_uid:$host_gid." >&2
 fi
 
 echo "OpenCode runtime UID:GID is $runtime_uid:$runtime_gid."
