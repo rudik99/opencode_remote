@@ -1,6 +1,6 @@
 # OpenCode Remote
 
-A self-hosted OpenCode workspace with persistent projects and sessions, Docker-in-Docker application previews, browser automation, GitHub HTTPS authentication, and wildcard Cloudflare Tunnel routing.
+A self-hosted OpenCode workspace with persistent projects and sessions, Docker-in-Docker application previews, browser automation, optional Claude Code subscription delegation, GitHub HTTPS authentication, and wildcard Cloudflare Tunnel routing.
 
 Each project can be built inside the isolated DinD daemon and published at a stable hostname such as `shop.example.com`. OpenCode receives explicit deployment and teardown procedures that verify real browser behavior and preserve application data.
 
@@ -28,6 +28,8 @@ The host does not publish OpenCode, preview, browser, or Docker daemon ports. Cl
 - Browserless Chromium and Playwright MCP
 - Context7 and GitHub MCP templates
 - GitHub CLI HTTPS credential helper
+- Official Claude Code CLI bridge with selectable `default`, `sonnet`, `opus`, and `haiku` models
+- Guarded `/claude` delegation command with read-only and file-edit modes
 - `/preview-deploy` and `/preview-destroy` commands
 - Hardened preview instructions covering production builds, Compose overrides, bootstrap, hydration checks, data preservation, and orphan cleanup
 - Common development tools including Git, Git LFS, GitHub CLI, Node 22, Python 3, `nano`, `rg`, `fd`, and a compiler toolchain
@@ -143,6 +145,40 @@ Restart OpenCode after changing configuration, commands, agents, or skills:
 docker compose restart opencode
 ```
 
+## Claude Code Subscription Delegation
+
+OpenCode can delegate a bounded task to the official Claude Code CLI using your own Claude Pro, Max, Team, or Enterprise subscription. This does not make the subscription a native OpenCode provider: OpenCode still uses `OPENCODE_MODEL` for orchestration, while Claude Code handles only delegated requests.
+
+After building the stack, generate a token through Anthropic's official flow:
+
+```bash
+docker compose exec opencode claude setup-token
+```
+
+Put the generated value directly in the ignored `.env` file, never in chat or source control:
+
+```dotenv
+CLAUDE_CODE_OAUTH_TOKEN=your-generated-token
+```
+
+Apply and verify it:
+
+```bash
+chmod 600 .env
+docker compose up -d --no-deps --force-recreate opencode
+docker compose exec opencode claude auth status --text
+```
+
+Delegate from OpenCode with an optional model alias:
+
+```text
+/claude opus review this architecture
+/claude sonnet implement the requested change
+/claude haiku summarize this module
+```
+
+Every delegation requires permission. Analyze mode is read-only; edit mode can modify files but cannot run shell, web, browser, or MCP tools. OpenCode performs tests and final verification. See [Claude Code Subscription Bridge](docs/claude-code-bridge.md) for installation updates, authentication, security boundaries, renewal, and troubleshooting.
+
 ## GitHub Access
 
 Put a GitHub token in `.env`:
@@ -183,6 +219,14 @@ Clone or create projects under `/workspace` in OpenCode. On the host they are st
 ```
 
 The same absolute `/workspace` path is mounted into OpenCode and DinD. This is important because bind-mount source paths are resolved by the DinD daemon, not the Docker client.
+
+## Restart And Recovery
+
+OpenCode session history persists under `./data/state`. After the OpenCode container restarts, reopen the existing session and ask it to inspect the current workspace and continue.
+
+Processes running inside the OpenCode container, including shell commands and Claude Code delegations, stop with the container and are not replayed automatically. Automatic replay is unsafe because an interrupted tool may already have partially changed files or an external service.
+
+Run long-lived project applications through Compose in DinD with an appropriate restart policy. Those containers are independent of the OpenCode service and can continue running or restart under the DinD daemon. Design long-running batch work to persist checkpoints and restart idempotently rather than relying on an OpenCode terminal process.
 
 ## Preview Lifecycle
 
