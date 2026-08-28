@@ -41,7 +41,7 @@ The host does not publish OpenCode, preview, browser, or Docker daemon ports. Cl
 - `/reload-workspace` command for reloading project config and MCP servers without restarting the container
 - Enforced pre-handoff browser verification and `/test-like-a-human` acceptance command
 - Context-aware PR follow-through with inline feedback resolution and `/pr-follow-through`
-- Proportional validation rules that keep simple tasks fast and reserve expensive checks for matching risks
+- Proportional validation rules that keep simple tasks fast, reserve expensive checks for matching risks, and keep manually created worktrees inside each repository
 - Portable agents, commands, instructions, plugins, and pinned third-party skill bundles
 - Hardened preview instructions covering production builds, Compose overrides, bootstrap, hydration checks, data preservation, and orphan cleanup
 - Common development tools including Git, Git LFS, GitHub CLI, Node 22, Python 3, `nano`, `rg`, `fd`, and a compiler toolchain
@@ -188,6 +188,8 @@ Repositories without applicable automation incur only a short registration check
 ## Proportional Execution
 
 OpenCode classifies task risk before selecting validation. Documentation and metadata changes avoid builds and browser work; isolated logic changes use focused tests; browser-facing work gets one conclusive pre-handoff journey; production packaging and high-risk behavior receive the heavier checks they warrant. Validation proceeds from cheapest to most expensive, repeated full builds and preview updates are bounded, static package operations do not start infrastructure, and simple tasks do not launch subagents.
+
+Manual Git worktrees are created under the primary checkout at `.worktrees/<name>`, with `.worktrees/` added to the repository's local `.git/info/exclude`. This keeps them inside OpenCode's project boundary without introducing a tracked ignore-file change or requiring broad external-directory permission. OpenCode's built-in worktree feature is separate: its location is managed under OpenCode's persistent data directory and automatically registered as a project sandbox.
 
 ## Claude Code Subscription Delegation
 
