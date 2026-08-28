@@ -38,6 +38,7 @@ The host does not publish OpenCode, preview, browser, or Docker daemon ports. Cl
 - Official Claude Code CLI bridge with selectable `default`, `sonnet`, `opus`, and `haiku` models
 - Guarded `/claude` delegation command with read-only and file-edit modes
 - `/preview-deploy` and `/preview-destroy` commands
+- `/reload-workspace` command for reloading project config and MCP servers without restarting the container
 - Hardened preview instructions covering production builds, Compose overrides, bootstrap, hydration checks, data preservation, and orphan cleanup
 - Common development tools including Git, Git LFS, GitHub CLI, Node 22, Python 3, `nano`, `rg`, `fd`, and a compiler toolchain
 
@@ -146,11 +147,13 @@ The versioned template is at:
 ./config-template/opencode.jsonc
 ```
 
-Restart OpenCode after changing configuration, commands, agents, or skills:
+Reload the affected workspace after changing project configuration, commands, agents, skills, or MCP credentials:
 
-```bash
-docker compose restart opencode
+```text
+/reload-workspace
 ```
+
+This disposes and recreates only the current workspace instance. Recreate the OpenCode container when changing its image or process-level environment variables.
 
 ## Claude Code Subscription Delegation
 
