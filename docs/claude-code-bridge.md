@@ -18,6 +18,8 @@ This is not an Anthropic provider for OpenCode. OpenCode still needs its own mai
 
 Do not use third-party OAuth plugins that collect Claude credentials or rewrite OpenCode requests to impersonate Claude Code. Anthropic explicitly prohibits routing Pro or Max credentials through third-party applications. This bridge runs Anthropic's published Claude Code binary with the user's own authentication.
 
+`CLAUDE_CODE_VERSION` defaults to `latest`, resolved when the image is built. Rebuild the image to receive a newer release, or set an explicit version in `.env` when reproducible builds are required.
+
 ## Initial Authentication
 
 Build and start the stack before generating the token:

@@ -27,7 +27,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
  && rm -rf /var/lib/apt/lists/*
 
 # Official Claude Code CLI for subscription-backed delegated tasks.
-ARG CLAUDE_CODE_VERSION=2.1.250
+ARG CLAUDE_CODE_VERSION=latest
 RUN npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
  && claude --version
 
