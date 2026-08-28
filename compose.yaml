@@ -29,6 +29,7 @@ services:
       context: .
       args:
         OPENCODE_VERSION: ${OPENCODE_VERSION:-latest}
+        CLAUDE_CODE_VERSION: ${CLAUDE_CODE_VERSION:-2.1.250}
         OPENCODE_UID: ${OPENCODE_UID:-1000}
         OPENCODE_GID: ${OPENCODE_GID:-1000}
     image: local/opencode-remote:${OPENCODE_TAG:-latest}
@@ -38,6 +39,7 @@ services:
     user: ${OPENCODE_UID:-1000}:${OPENCODE_GID:-1000}
     environment:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
       CONTEXT7_API_KEY: ${CONTEXT7_API_KEY:-}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       GH_TOKEN: ${GITHUB_TOKEN:-}
