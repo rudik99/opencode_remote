@@ -38,6 +38,8 @@ services:
       DISABLE_AUTOUPDATER: "1"
       CLAUDE_SESSION_NAME: ${CLAUDE_SESSION_NAME:-homelab}
       CLAUDE_PERMISSION_MODE: ${CLAUDE_PERMISSION_MODE:-default}
+      # Local time for the terminal, git, logs and Claude itself (the image defaults to UTC).
+      TZ: ${TZ:-UTC}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       GH_TOKEN: ${GITHUB_TOKEN:-}
       CONTEXT7_API_KEY: ${CONTEXT7_API_KEY:-}
