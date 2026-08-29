@@ -35,6 +35,7 @@ add_var CLAUDE_CODE_VERSION latest          # pin (e.g. 2.1.247) before leaving 
 add_var CLAUDE_TAG latest
 add_var CLAUDE_SESSION_NAME homelab         # name shown in the Claude app
 add_var CLAUDE_PERMISSION_MODE default      # default | acceptEdits | plan | ...
+add_var CLAUDE_WORKDIR /workspace           # dir Remote Control starts in; set to a repo to get its .claude skills/agents
 add_var TZ UTC                              # container local time, e.g. Pacific/Auckland
 add_var CLAUDE_MEMORY_LIMIT 4g
 add_var CLAUDE_CPU_LIMIT 4

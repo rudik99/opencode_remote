@@ -87,7 +87,10 @@ a Cloudflare Access application (MFA policy) in front — Access *is* the login.
 It opens `/workspace`; its terminal is where `claude`, `claude auth login`,
 `gh auth login` and `aws sso login --use-device-code` run from the iPad.
 Extensions/settings persist on `./data/claude/code-server`; `gh` login on
-`./data/claude/gh`; AWS configuration and SSO tokens on `./data/claude/aws`.
+`./data/claude/gh`; AWS configuration and SSO tokens on `./data/claude/aws`;
+SSH keys/config/known_hosts on `./data/claude/ssh` (generate a key *for the
+box* there and install its public key where the agent must deploy — don't
+copy private keys from another machine).
 The Claude Code extension (`Anthropic.claude-code`, Open VSX) is installed by
 the entrypoint on first start and persists on that volume.
 
@@ -95,6 +98,14 @@ the entrypoint on first start and persists on that volume.
 
 * **Permission mode**: `CLAUDE_PERMISSION_MODE` (default `default`). Prompts
   are forwarded to the Claude app; `acceptEdits` reduces them.
+* **Working directory**: `CLAUDE_WORKDIR` (default `/workspace`) is where Remote
+  Control starts. Claude Code loads project skills and agents (`.claude/skills`,
+  `.claude/agents`) from the start directory and its parents, not from
+  subdirectories — set it to the repo you actually work in
+  (e.g. `/workspace/<repo>`) or the app session never offers that repo's slash
+  commands. Falls back to `/workspace` if the path doesn't exist yet.
+  code-server still opens `/workspace`; sessions are keyed by directory, so an
+  interactive `claude` should be started from the same one.
 * **Timezone**: `TZ` (default `UTC`) sets the container's local time — the
   terminal, git commit dates, logs and Claude's own sense of "today". The image
   ships `tzdata`, so any zone name works (e.g. `TZ=Pacific/Auckland`).
@@ -143,7 +154,7 @@ reach the VM; that is strictly less to maintain.
 
 ## Open points
 
-1. **Trust seeding** writes `projects["/workspace"].hasTrustDialogAccepted`
-   into `.claude.json`. If a future Claude Code version changes that layout,
-   run `claude` once interactively in `/workspace` instead and remove the
-   seeding block.
+1. **Trust seeding** writes `projects[<dir>].hasTrustDialogAccepted` for
+   `/workspace` and `$CLAUDE_WORKDIR` into `.claude.json`. If a future Claude
+   Code version changes that layout, run `claude` once interactively in that
+   directory instead and remove the seeding block.
