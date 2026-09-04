@@ -26,6 +26,11 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
  && apt-get install -y --no-install-recommends nodejs \
  && rm -rf /var/lib/apt/lists/*
 
+# Native TypeScript 7 compiler and LSP. Project-local TypeScript remains untouched.
+ARG TYPESCRIPT_VERSION=7.0.2
+RUN npm install -g "typescript@${TYPESCRIPT_VERSION}" \
+ && tsc --version
+
 # Salesforce CLI provides workspace-local OAuth state for the official Salesforce MCP server.
 ARG SALESFORCE_CLI_VERSION=latest
 RUN npm install -g "@salesforce/cli@${SALESFORCE_CLI_VERSION}" \

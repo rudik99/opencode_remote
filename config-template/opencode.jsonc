@@ -1,11 +1,17 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "{env:OPENCODE_MODEL}",
-  "lsp": true,
+  "lsp": {
+    "typescript": {
+      "command": ["tsc", "--lsp", "--stdio"],
+      "extensions": [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"]
+    }
+  },
   "instructions": [
     "/home/opencode/.config/opencode/instructions/visual-verification.md",
     "/home/opencode/.config/opencode/instructions/pr-follow-through.md",
     "/home/opencode/.config/opencode/instructions/execution-efficiency.md",
+    "/home/opencode/.config/opencode/instructions/stream-isolation.md",
     "/home/opencode/.config/opencode/instructions/memory-curation.md"
   ],
   "plugin": [
@@ -41,7 +47,7 @@
     "github": {
       "type": "local",
       "command": ["npx", "-y", "@modelcontextprotocol/server-github@2025.4.8"],
-      "enabled": true,
+      "enabled": false,
       "environment": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "{env:GITHUB_TOKEN}"
       }
@@ -57,7 +63,7 @@
     "sequential-thinking": {
       "type": "local",
       "command": ["npx", "-y", "@modelcontextprotocol/server-sequential-thinking@2026.7.4"],
-      "enabled": true
+      "enabled": false
     },
     "railway": {
       "type": "local",
@@ -82,11 +88,11 @@
   },
   "tools": {
     "context7*": true,
-    "github*": true,
+    "github*": false,
     "perplexity*": false,
     "playwright*": true,
     "railway*": false,
-    "sequential-thinking*": true,
+    "sequential-thinking*": false,
     "v0*": false
   },
   "permission": {

@@ -10,7 +10,7 @@ Use the `preview` helper and the Docker daemon at `DOCKER_HOST`. Cloudflare is c
 ## Invariants
 
 - Preview hostnames are `<slug>.<PREVIEW_BASE_DOMAIN>`.
-- Use lowercase DNS-safe slugs. Prefer the repository or project directory name.
+- Obtain the lowercase DNS-safe slug with `preview slug`. It includes the worktree name when running in an isolated stream; do not replace it with only the repository name.
 - The `preview` helper owns host ports `31000-31999`; do not select a port manually.
 - Applications must listen on `0.0.0.0` inside their container.
 - A DinD-published port is reachable from the router as `http://dind:<port>`.
@@ -24,10 +24,11 @@ Use the `preview` helper and the Docker daemon at `DOCKER_HOST`. Cloudflare is c
 
 1. Inspect the project and identify its Compose files, production Dockerfile or image, application service, internal HTTP port, startup command, health endpoint, dependencies, and required bootstrap steps. Prefer the production build that actually ships. Treat a development Compose file as a topology reference, not automatically as the preview runtime. Use a dev server only when no viable production target exists or the user explicitly requests it.
 2. Inventory prerequisites before building: required `.env` files and secrets, migrations, seed or fixture data, external services, public URLs, API keys, and application-specific bootstrap commands. Do not invent missing secrets. Ensure the resulting data makes at least one representative user journey testable.
-3. Reserve the hostname and port:
+3. Derive and reserve the stream-specific hostname and port:
 
    ```bash
-   preview reserve <slug> "$PWD"
+   slug=$(preview slug)
+   preview reserve "$slug" "$PWD"
    ```
 
 4. Initialize the preview's persistent environment file and record the returned path:

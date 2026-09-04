@@ -1,0 +1,75 @@
+#!/bin/sh
+set -eu
+
+usage() {
+  cat <<'EOF'
+Usage:
+  stream create <name> [repository] [start-point]
+  stream remove <name> [repository]
+  stream list [repository]
+EOF
+}
+
+validate_name() {
+  case "$1" in
+    ''|*[!a-z0-9-]*|-*|*-) echo "Invalid stream name: use lowercase letters, numbers, and internal hyphens" >&2; exit 2 ;;
+  esac
+}
+
+repository_root() {
+  git -C "${1:-$PWD}" rev-parse --show-toplevel 2>/dev/null \
+    || { echo "Not inside a Git repository: ${1:-$PWD}" >&2; exit 1; }
+}
+
+command=${1:-}
+case "$command" in
+  create)
+    name=${2:-}
+    validate_name "$name"
+    root=$(repository_root "${3:-$PWD}")
+    common_dir=$(git -C "$root" rev-parse --path-format=absolute --git-common-dir)
+    primary=${common_dir%/.git}
+    start_point=${4:-HEAD}
+    target="$primary/.worktrees/$name"
+    branch="stream/$name"
+    exclude="$common_dir/info/exclude"
+
+    mkdir -p "$primary/.worktrees"
+    if ! grep -qxF '/.worktrees/' "$exclude" 2>/dev/null; then
+      printf '\n/.worktrees/\n' >> "$exclude"
+    fi
+
+    if [ -e "$target" ]; then
+      [ -d "$target" ] || { echo "Stream path is not a directory: $target" >&2; exit 1; }
+      printf '%s\n' "$target"
+      exit 0
+    fi
+
+    if git -C "$primary" show-ref --verify --quiet "refs/heads/$branch"; then
+      git -C "$primary" worktree add "$target" "$branch" >&2
+    else
+      git -C "$primary" worktree add -b "$branch" "$target" "$start_point" >&2
+    fi
+    printf '%s\n' "$target"
+    ;;
+  remove)
+    name=${2:-}
+    validate_name "$name"
+    root=$(repository_root "${3:-$PWD}")
+    common_dir=$(git -C "$root" rev-parse --path-format=absolute --git-common-dir)
+    primary=${common_dir%/.git}
+    target="$primary/.worktrees/$name"
+    [ -d "$target" ] || { echo "Stream does not exist: $target" >&2; exit 1; }
+    [ -z "$(git -C "$target" status --porcelain)" ] \
+      || { echo "Stream has uncommitted changes and was not removed: $target" >&2; exit 1; }
+    git -C "$primary" worktree remove "$target"
+    ;;
+  list)
+    root=$(repository_root "${2:-$PWD}")
+    git -C "$root" worktree list
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
