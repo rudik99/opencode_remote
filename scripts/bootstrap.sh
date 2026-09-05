@@ -119,6 +119,7 @@ if [ ! -f data/gitconfig ]; then
 fi
 
 chmod 0755 preview/preview
+chmod 0755 stream/stream
 
 if [ "$host_uid" -eq 0 ]; then
   chown -R "$runtime_uid:$runtime_gid" data

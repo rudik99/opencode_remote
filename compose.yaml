@@ -15,8 +15,8 @@ services:
       - ./data/workspace:/workspace
     networks:
       - opencode
-    mem_limit: ${DIND_MEMORY_LIMIT:-8g}
-    cpus: ${DIND_CPU_LIMIT:-4}
+    mem_limit: ${DIND_MEMORY_LIMIT:-16g}
+    cpus: ${DIND_CPU_LIMIT:-12}
     healthcheck:
       test: ["CMD", "docker", "info"]
       interval: 10s
@@ -29,6 +29,7 @@ services:
       context: .
       args:
         OPENCODE_VERSION: ${OPENCODE_VERSION:-latest}
+        TYPESCRIPT_VERSION: ${TYPESCRIPT_VERSION:-7.0.2}
         CLAUDE_CODE_VERSION: ${CLAUDE_CODE_VERSION:-latest}
         SALESFORCE_CLI_VERSION: ${SALESFORCE_CLI_VERSION:-latest}
         OPENCODE_UID: ${OPENCODE_UID:-1000}
@@ -63,6 +64,7 @@ services:
       - ./data/previews:/home/opencode/.local/share/previews
       - ./data/gitconfig:/home/opencode/.gitconfig
       - ./preview/preview:/usr/local/bin/preview:ro
+      - ./stream/stream:/usr/local/bin/stream:ro
     expose:
       - "4096"
     networks:
@@ -76,7 +78,7 @@ services:
         condition: service_healthy
     security_opt:
       - no-new-privileges:true
-    mem_limit: ${OPENCODE_MEMORY_LIMIT:-4g}
+    mem_limit: ${OPENCODE_MEMORY_LIMIT:-16g}
     cpus: ${OPENCODE_CPU_LIMIT:-4}
     healthcheck:
       test:

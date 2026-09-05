@@ -13,6 +13,7 @@ ENV_DIR=${PREVIEW_ENV_DIR:-/workspace/.preview-env}
 usage() {
   cat <<'EOF'
 Usage:
+  preview slug
   preview reserve <slug> [project-directory]
   preview publish <slug>
   preview remove <slug>
@@ -33,6 +34,26 @@ validate_slug() {
 validate_publish_slug() {
   validate_slug "$1"
   [ "$1" != screenshots ] || { echo "Reserved preview slug: screenshots" >&2; exit 2; }
+}
+
+project_root() {
+  directory=${1:-$PWD}
+  [ -d "$directory" ] || { echo "Project directory does not exist: $directory" >&2; exit 1; }
+  git -C "$directory" rev-parse --show-toplevel 2>/dev/null || (cd "$directory" && pwd -P)
+}
+
+suggest_slug() {
+  root=$(project_root "$PWD")
+  common_dir=$(git -C "$root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)
+  primary=${common_dir%/.git}
+  repository=$(basename "${primary:-$root}")
+  name=$repository
+  if [ -n "$primary" ] && [ "$root" != "$primary" ]; then
+    name="$repository-$(basename "$root")"
+  fi
+  slug=$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//;s/-$//')
+  validate_publish_slug "$slug"
+  printf '%s\n' "$slug"
 }
 
 acquire_lock() {
@@ -87,6 +108,9 @@ mkdir -p "$STATE_DIR"
 
 command=${1:-}
 case "$command" in
+  slug)
+    suggest_slug
+    ;;
   env)
     slug=${2:-}
     validate_slug "$slug"
@@ -112,12 +136,18 @@ case "$command" in
   reserve)
     slug=${2:-}
     validate_publish_slug "$slug"
-    project=${3:-$PWD}
+    project=$(project_root "${3:-$PWD}")
     acquire_lock
     trap release_lock EXIT INT TERM
 
     existing=$(jq -r --arg slug "$slug" '.[$slug].port // empty' "$REGISTRY")
     if [ -n "$existing" ]; then
+      existing_project=$(jq -r --arg slug "$slug" '.[$slug].project // empty' "$REGISTRY")
+      [ "$existing_project" = "$project" ] || {
+        echo "Preview slug '$slug' belongs to another stream: $existing_project" >&2
+        echo "Use the stream-specific slug from: preview slug" >&2
+        exit 1
+      }
       printf 'slug=%s\nport=%s\nhostname=%s.%s\n' "$slug" "$existing" "$slug" "$BASE_DOMAIN"
       exit 0
     fi
