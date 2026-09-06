@@ -34,7 +34,7 @@
         "-y",
         "@playwright/mcp@0.0.79",
         "--cdp-endpoint",
-        "ws://chromium:3000",
+        "ws://chromium:3000/chromium",
         "--image-responses",
         "allow",
         "--output-dir",

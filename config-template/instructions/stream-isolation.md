@@ -1,8 +1,10 @@
 # Concurrent Stream Isolation
 
-OpenCode sessions are not filesystem sandboxes. Two sessions in the same checkout can overwrite source, build artifacts, caches, test databases, ports, and Compose resources. Never perform concurrent implementation work in the same writable checkout.
+Sessions using the exact same checkout share its filesystem watcher, TypeScript LSP, and ESLint server. Prefer the primary checkout by default for lower memory use and faster project warmup. Worktrees intentionally trade those shared resources for filesystem and branch isolation.
 
-- When a request will change repository files and the session is in the primary checkout, create a dedicated worktree immediately with `stream create <lowercase-task-name> <repository>`. Do this before reading project source, installing dependencies, or starting an LSP through source-file access. Do not create a worktree for read-only questions, explicit maintenance of the primary checkout, or a session already inside a worktree.
+- Do not create a worktree automatically merely because a request changes code. Create one only when the user explicitly requests an isolated or concurrent stream, when overlapping implementation would make a shared checkout unsafe, or when unrelated in-progress changes prevent safe work in the current checkout.
+- In a shared checkout, inspect `git status --short` before editing, preserve unrelated changes, and avoid running concurrent commands that mutate the same files, dependencies, build outputs, databases, ports, or Compose resources.
+- When isolation is required, create the worktree before reading project source or installing dependencies with `stream create <lowercase-task-name> <repository>`.
 - Continue the implementation exclusively from the returned worktree path. Set every shell command's working directory to that path and scope every read, glob, grep, edit, task, test, and build to it. Do not use relative paths that resolve against the primary checkout and do not inspect equivalent source files there.
 - A session's OpenCode project directory cannot be changed after creation. For the cleanest isolation and lowest watcher/LSP overhead, open the returned worktree as a new OpenCode project. If continuing in the current session, treat the returned path as the effective project root for all tools and report it to the user.
 - Reuse the same worktree for the lifetime of the stream. Do not create another worktree for follow-up work on the same task.
