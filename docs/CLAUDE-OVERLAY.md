@@ -95,6 +95,9 @@ the entrypoint on first start and persists on that volume.
 
 * **Permission mode**: `CLAUDE_PERMISSION_MODE` (default `default`). Prompts
   are forwarded to the Claude app; `acceptEdits` reduces them.
+* **Timezone**: `TZ` (default `UTC`) sets the container's local time — the
+  terminal, git commit dates, logs and Claude's own sense of "today". The image
+  ships `tzdata`, so any zone name works (e.g. `TZ=Pacific/Auckland`).
 * **Restarts**: plain server mode is used, not `--continue`, because
   `--continue` exits when its single session ends and would fight
   `restart: unless-stopped`. After a restart the server re-serves the
