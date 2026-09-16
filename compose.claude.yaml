@@ -38,6 +38,8 @@ services:
       DISABLE_AUTOUPDATER: "1"
       CLAUDE_SESSION_NAME: ${CLAUDE_SESSION_NAME:-homelab}
       CLAUDE_PERMISSION_MODE: ${CLAUDE_PERMISSION_MODE:-default}
+      # Where Remote Control starts (project skills/agents load from here, not subdirs).
+      CLAUDE_WORKDIR: ${CLAUDE_WORKDIR:-/workspace}
       # Local time for the terminal, git, logs and Claude itself (the image defaults to UTC).
       TZ: ${TZ:-UTC}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}

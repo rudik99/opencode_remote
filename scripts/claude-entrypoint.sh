@@ -3,7 +3,17 @@
 # server mode, or idle (without crash-looping) until a human has signed in.
 set -eu
 
-cd /workspace
+# Directory Remote Control starts in. Claude Code loads project skills/agents
+# (.claude/skills, .claude/agents) from the start directory and its parents,
+# NOT from subdirectories — so point this at the repo you work in, or the
+# app session never sees /release-style project commands. code-server keeps
+# serving /workspace regardless.
+WORKDIR="${CLAUDE_WORKDIR:-/workspace}"
+if [ ! -d "$WORKDIR" ]; then
+  echo "claude-entrypoint: CLAUDE_WORKDIR=$WORKDIR does not exist (not cloned yet?); using /workspace" >&2
+  WORKDIR=/workspace
+fi
+cd "$WORKDIR"
 
 # --- 1. Refuse configurations that silently break Remote Control -------------
 # Remote Control needs a direct claude.ai login against api.anthropic.com.
@@ -24,17 +34,17 @@ done
 
 # --- 2. Workspace trust ------------------------------------------------------
 # Without a TTY, `claude remote-control` exits with "Workspace not trusted"
-# unless trust for the cwd is already recorded. Record it for /workspace.
+# unless trust for the cwd is already recorded. Record it for /workspace and
+# for $WORKDIR (same path when CLAUDE_WORKDIR is unset).
 cfg="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/.claude.json"
-if [ -f "$cfg" ]; then
-  if ! jq -e '.projects["/workspace"].hasTrustDialogAccepted == true' "$cfg" >/dev/null 2>&1; then
+[ -f "$cfg" ] || printf '{"projects":{}}\n' > "$cfg"
+for d in /workspace "$WORKDIR"; do
+  if ! jq -e --arg d "$d" '.projects[$d].hasTrustDialogAccepted == true' "$cfg" >/dev/null 2>&1; then
     tmp=$(mktemp) \
-      && jq '.projects["/workspace"] = ((.projects["/workspace"] // {}) + {hasTrustDialogAccepted: true})' "$cfg" > "$tmp" \
+      && jq --arg d "$d" '.projects[$d] = ((.projects[$d] // {}) + {hasTrustDialogAccepted: true})' "$cfg" > "$tmp" \
       && cat "$tmp" > "$cfg" && rm -f "$tmp"
   fi
-else
-  printf '{"projects":{"/workspace":{"hasTrustDialogAccepted":true}}}\n' > "$cfg"
-fi
+done
 
 # --- 2b. SSH ------------------------------------------------------------------
 # ~/.ssh is a persistent volume (keys, config, known_hosts survive rebuilds).
@@ -70,6 +80,7 @@ MSG
     until logged_in; do sleep 30; done
     echo "claude-entrypoint: login detected, starting Remote Control" >&2
   fi
+  echo "claude-entrypoint: Remote Control working directory: $WORKDIR" >&2
 
   # Plain server mode, NOT --continue: --continue exits when its single session
   # ends. Re-running server mode in the same directory re-serves the sessions it
